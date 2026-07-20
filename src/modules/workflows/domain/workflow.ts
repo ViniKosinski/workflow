@@ -1,10 +1,10 @@
-export type WorkflowStatus = "Ativo" | "Em revisão" | "Planejado";
+export type WorkflowSummaryStatus = "Ativo" | "Em revisão" | "Planejado";
 
 export type WorkflowSummary = {
   id: string;
   title: string;
   description: string;
-  status: WorkflowStatus;
+  status: WorkflowSummaryStatus;
   steps: number;
   owner: string;
 };
