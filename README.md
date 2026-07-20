@@ -76,3 +76,32 @@ O projeto segue uma organização modular para manter responsabilidades separada
 - `src/shared`: componentes e utilitários reutilizáveis por múltiplos módulos.
 
 Quando uma funcionalidade exigir mudanças relevantes nessa estrutura, a arquitetura deve ser reavaliada antes da implementação.
+
+## Diretrizes de desenvolvimento
+
+- Priorize simplicidade, legibilidade e manutenção.
+- Utilize uma arquitetura modular e escalável.
+- Evite duplicação de código.
+- Siga princípios SOLID quando eles ajudarem a reduzir acoplamento e melhorar clareza.
+- Separe claramente interface, regras de negócio, serviços e acesso a dados.
+- Não implemente soluções complexas sem necessidade.
+- Antes de criar código novo, reutilize componentes e padrões existentes sempre que possível.
+- Mantenha baixo acoplamento e alta coesão entre os módulos.
+- Preserve compatibilidade com o código existente.
+- Faça commits pequenos e descritivos.
+
+Antes de implementar uma nova funcionalidade:
+
+1. Analise a arquitetura atual.
+2. Verifique se a funcionalidade se encaixa na estrutura existente.
+3. Caso seja necessária uma mudança arquitetural significativa, apresente uma proposta antes de implementar.
+
+Ao corrigir bugs, identifique a causa raiz primeiro, explique resumidamente o problema e implemente uma solução definitiva, evitando efeitos colaterais.
+
+Antes de concluir uma tarefa, valide TypeScript, ESLint e build:
+
+```bash
+npm run type-check
+npm run lint
+npm run build
+```
