@@ -44,13 +44,35 @@ http://localhost:3000
 ```text
 src/
   app/
+    # Rotas, layouts globais e arquivos do App Router.
     globals.css
     layout.tsx
     page.tsx
-  components/
-    layout/
-    workflow/
-    ui/
-  lib/
+  modules/
+    dashboard/
+      presentation/
+        pages/
+    workflows/
+      domain/
+      application/
+      infrastructure/
+      presentation/
+  shared/
+    components/
+      layout/
+      ui/
 ```
 
+## Arquitetura
+
+O projeto segue uma organização modular para manter responsabilidades separadas:
+
+- `src/app`: camada de roteamento do Next.js. Deve permanecer fina e delegar a composição para módulos.
+- `src/modules`: funcionalidades de negócio organizadas por domínio.
+- `domain`: tipos, entidades e contratos centrais da funcionalidade.
+- `application`: casos de uso e orquestração de regras.
+- `infrastructure`: integrações externas, dados mockados, APIs e persistência.
+- `presentation`: componentes e páginas específicas do módulo.
+- `src/shared`: componentes e utilitários reutilizáveis por múltiplos módulos.
+
+Quando uma funcionalidade exigir mudanças relevantes nessa estrutura, a arquitetura deve ser reavaliada antes da implementação.

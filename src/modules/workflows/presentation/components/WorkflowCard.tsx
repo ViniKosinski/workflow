@@ -1,4 +1,4 @@
-import type { WorkflowSummary } from "@/lib/workflows";
+import type { WorkflowSummary } from "@/modules/workflows/domain/workflow";
 
 type WorkflowCardProps = {
   workflow: WorkflowSummary;
