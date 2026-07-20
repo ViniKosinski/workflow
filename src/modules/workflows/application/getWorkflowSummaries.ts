@@ -1,5 +1,5 @@
-import { mockWorkflowRepository } from "@/modules/workflows/infrastructure/mockWorkflowRepository";
+import type { WorkflowRepository } from "@/modules/workflows/domain/workflowRepository";
 
-export function getWorkflowSummaries() {
-  return mockWorkflowRepository.listSummaries();
+export function getWorkflowSummaries(repository: WorkflowRepository) {
+  return repository.listSummaries();
 }

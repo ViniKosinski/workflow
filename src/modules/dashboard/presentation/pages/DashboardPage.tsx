@@ -1,10 +1,13 @@
 import { getWorkflowSummaries } from "@/modules/workflows/application/getWorkflowSummaries";
 import { WorkflowCard } from "@/modules/workflows/presentation/components/WorkflowCard";
+import { workflowDependencies } from "@/modules/workflows/workflowDependencies";
 import { AppHeader } from "@/shared/components/layout/AppHeader";
 import { Button } from "@/shared/components/ui/Button";
 
 export function DashboardPage() {
-  const workflowSummaries = getWorkflowSummaries();
+  const workflowSummaries = getWorkflowSummaries(
+    workflowDependencies.workflowRepository,
+  );
 
   return (
     <main className="min-h-screen bg-slate-50">
