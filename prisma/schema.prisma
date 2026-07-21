@@ -1,0 +1,136 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum WorkflowStatus {
+  DRAFT     @map("draft")
+  READY     @map("ready")
+  RUNNING   @map("running")
+  COMPLETED @map("completed")
+  FAILED    @map("failed")
+  CANCELLED @map("cancelled")
+
+  @@map("workflow_status")
+}
+
+enum WorkflowStepStatus {
+  PENDING   @map("pending")
+  RUNNING   @map("running")
+  COMPLETED @map("completed")
+  FAILED    @map("failed")
+
+  @@map("workflow_step_status")
+}
+
+enum WorkflowEventScope {
+  WORKFLOW @map("workflow")
+  STEP     @map("step")
+
+  @@map("workflow_event_scope")
+}
+
+model WorkflowDefinition {
+  id         String    @id @db.VarChar(64)
+  name       String    @db.VarChar(255)
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  archivedAt DateTime? @map("archived_at") @db.Timestamptz(6)
+
+  steps WorkflowDefinitionStep[]
+  runs  WorkflowRun[]
+
+  @@map("workflow_definitions")
+}
+
+model WorkflowDefinitionStep {
+  id                   String             @id @db.VarChar(64)
+  workflowDefinitionId String             @map("workflow_definition_id") @db.VarChar(64)
+  name                 String             @db.VarChar(255)
+  order                Int
+  createdAt            DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+  workflowDefinition   WorkflowDefinition @relation(fields: [workflowDefinitionId], references: [id], onDelete: Cascade)
+  runSteps             WorkflowRunStep[]
+
+  @@unique([workflowDefinitionId, order])
+  @@index([workflowDefinitionId])
+  @@map("workflow_definition_steps")
+}
+
+model WorkflowRun {
+  id                   String         @id @db.VarChar(64)
+  workflowDefinitionId String         @map("workflow_definition_id") @db.VarChar(64)
+  status               WorkflowStatus
+  currentStepId        String?        @unique @map("current_step_id") @db.VarChar(64)
+  startedAt            DateTime?      @map("started_at") @db.Timestamptz(6)
+  finishedAt           DateTime?      @map("finished_at") @db.Timestamptz(6)
+  failureReason        String?        @map("failure_reason") @db.Text
+  cancellationReason   String?        @map("cancellation_reason") @db.Text
+  createdAt            DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  workflowDefinition WorkflowDefinition       @relation(fields: [workflowDefinitionId], references: [id], onDelete: Restrict)
+  currentStep        WorkflowRunStep?         @relation("CurrentWorkflowRunStep", fields: [currentStepId], references: [id], onDelete: SetNull)
+  steps              WorkflowRunStep[]        @relation("WorkflowRunSteps")
+  events             WorkflowExecutionEvent[]
+
+  @@index([workflowDefinitionId])
+  @@index([status])
+  @@map("workflow_runs")
+}
+
+model WorkflowRunStep {
+  id                       String             @id @db.VarChar(64)
+  workflowRunId            String             @map("workflow_run_id") @db.VarChar(64)
+  workflowDefinitionStepId String?            @map("workflow_definition_step_id") @db.VarChar(64)
+  name                     String             @db.VarChar(255)
+  order                    Int
+  status                   WorkflowStepStatus
+  executionResult          Json?              @map("execution_result")
+  startedAt                DateTime?          @map("started_at") @db.Timestamptz(6)
+  finishedAt               DateTime?          @map("finished_at") @db.Timestamptz(6)
+  errorMessage             String?            @map("error_message") @db.Text
+  createdAt                DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  workflowRun            WorkflowRun              @relation("WorkflowRunSteps", fields: [workflowRunId], references: [id], onDelete: Cascade)
+  workflowDefinitionStep WorkflowDefinitionStep?   @relation(fields: [workflowDefinitionStepId], references: [id], onDelete: SetNull)
+  currentForRun          WorkflowRun?              @relation("CurrentWorkflowRunStep")
+  events                 WorkflowExecutionEvent[]
+
+  @@unique([workflowRunId, order])
+  @@index([workflowRunId])
+  @@index([workflowDefinitionStepId])
+  @@index([status])
+  @@map("workflow_run_steps")
+}
+
+model WorkflowExecutionEvent {
+  id                   String              @id @db.VarChar(64)
+  workflowRunId        String              @map("workflow_run_id") @db.VarChar(64)
+  workflowRunStepId    String?             @map("workflow_run_step_id") @db.VarChar(64)
+  eventType            String              @map("event_type") @db.VarChar(80)
+  eventScope           WorkflowEventScope  @map("event_scope")
+  fromWorkflowStatus   WorkflowStatus?     @map("from_workflow_status")
+  toWorkflowStatus     WorkflowStatus?     @map("to_workflow_status")
+  fromStepStatus       WorkflowStepStatus? @map("from_step_status")
+  toStepStatus         WorkflowStepStatus? @map("to_step_status")
+  message              String              @db.Text
+  metadata             Json?
+  error                String?             @db.Text
+  occurredAt           DateTime            @map("occurred_at") @db.Timestamptz(6)
+  createdAt            DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  workflowRun     WorkflowRun      @relation(fields: [workflowRunId], references: [id], onDelete: Cascade)
+  workflowRunStep WorkflowRunStep? @relation(fields: [workflowRunStepId], references: [id], onDelete: SetNull)
+
+  @@index([workflowRunId, occurredAt])
+  @@index([workflowRunStepId])
+  @@index([eventType])
+  @@index([eventScope])
+  @@map("workflow_execution_events")
+}
