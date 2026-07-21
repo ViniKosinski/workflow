@@ -1,8 +1,8 @@
 import Link from "next/link";
-import { WORKFLOW_STATUSES } from "@/modules/workflows/domain/workflowEngine";
 import { getPersistedWorkflowById } from "@/modules/workflows/application/getPersistedWorkflowById";
+import { WORKFLOW_STATUSES } from "@/modules/workflows/domain/workflowEngine";
 import { DraftWorkflowStepsEditor } from "@/modules/workflows/presentation/components/DraftWorkflowStepsEditor";
-import { WorkflowActions } from "@/modules/workflows/presentation/components/WorkflowActions";
+import { WorkflowExecutionPanel } from "@/modules/workflows/presentation/components/WorkflowExecutionPanel";
 import { WorkflowHistory } from "@/modules/workflows/presentation/components/WorkflowHistory";
 import { WorkflowStatusBadge } from "@/modules/workflows/presentation/components/WorkflowStatusBadge";
 import { WorkflowStepsList } from "@/modules/workflows/presentation/components/WorkflowStepsList";
@@ -27,26 +27,22 @@ export async function WorkflowDetailsPage({
         <AppHeader />
 
         <section className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-6 py-8">
-          <div className="flex flex-col gap-4 border-b border-slate-200 pb-6 md:flex-row md:items-end md:justify-between">
-            <div>
-              <Link
-                className="text-sm font-semibold text-brand-700"
-                href="/workflows"
-              >
-                Voltar para fluxos
-              </Link>
-              <div className="mt-3 flex flex-wrap items-center gap-3">
-                <h1 className="text-3xl font-bold text-slate-950">
-                  {workflow.name}
-                </h1>
-                <WorkflowStatusBadge status={workflow.status} />
-              </div>
-              <p className="mt-2 text-sm text-slate-600">
-                {workflow.steps.length} etapas cadastradas
-              </p>
+          <div className="border-b border-slate-200 pb-6">
+            <Link
+              className="text-sm font-semibold text-brand-700"
+              href="/workflows"
+            >
+              Voltar para fluxos
+            </Link>
+            <div className="mt-3 flex flex-wrap items-center gap-3">
+              <h1 className="text-3xl font-bold text-slate-950">
+                {workflow.name}
+              </h1>
+              <WorkflowStatusBadge status={workflow.status} />
             </div>
-
-            <WorkflowActions workflow={workflow} />
+            <p className="mt-2 text-sm text-slate-600">
+              {workflow.steps.length} etapas cadastradas
+            </p>
           </div>
 
           <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
@@ -55,7 +51,11 @@ export async function WorkflowDetailsPage({
             ) : (
               <WorkflowStepsList workflow={workflow} />
             )}
-            <WorkflowHistory workflow={workflow} />
+
+            <div className="flex flex-col gap-6">
+              <WorkflowExecutionPanel workflow={workflow} />
+              <WorkflowHistory workflow={workflow} />
+            </div>
           </div>
         </section>
       </main>
