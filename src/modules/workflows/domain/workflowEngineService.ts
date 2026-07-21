@@ -928,6 +928,7 @@ export function createWorkflowEngine(
 
       return succeed(
         transitionWorkflow(workflow, WORKFLOW_STATUSES.cancelled, event, {
+          currentStepId: undefined,
           cancellationReason: reason,
           finishedAt: dependencies.clock.now(),
         }),

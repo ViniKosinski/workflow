@@ -537,6 +537,30 @@ describe("WorkflowEngine", () => {
       );
     });
 
+    it("limpa etapa atual ao cancelar execução em andamento", () => {
+      const engine = createEngine();
+      const workflow = startWorkflow(
+        engine,
+        prepareWorkflow(engine, createValidWorkflow(engine)),
+      );
+      const result = engine.cancelWorkflow({
+        workflow,
+        reason: "Execução interrompida.",
+      });
+
+      expect(result.success).toBe(true);
+
+      if (!result.success) {
+        throw new Error(result.error.message);
+      }
+
+      expect(result.data.status).toBe(WORKFLOW_STATUSES.cancelled);
+      expect(result.data.currentStepId).toBeUndefined();
+      expect(result.data.executionHistory.at(-1)?.type).toBe(
+        WORKFLOW_EVENT_TYPES.workflowCancelled,
+      );
+    });
+
     it("impede novas execuções após cancelamento", () => {
       const engine = createEngine();
       const cancelledResult = engine.cancelWorkflow({

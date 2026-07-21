@@ -1,14 +1,17 @@
 import { describe, expect, it } from "vitest";
 import { addWorkflowStep } from "@/modules/workflows/application/addWorkflowStep";
 import { cancelPersistedWorkflow } from "@/modules/workflows/application/cancelPersistedWorkflow";
+import { completePersistedWorkflowStep } from "@/modules/workflows/application/completePersistedWorkflowStep";
 import { createWorkflow } from "@/modules/workflows/application/createWorkflow";
 import { getPersistedWorkflowById } from "@/modules/workflows/application/getPersistedWorkflowById";
 import { listPersistedWorkflows } from "@/modules/workflows/application/listPersistedWorkflows";
 import { preparePersistedWorkflow } from "@/modules/workflows/application/preparePersistedWorkflow";
+import { registerPersistedWorkflowFailure } from "@/modules/workflows/application/registerPersistedWorkflowFailure";
 import { removeWorkflowStep } from "@/modules/workflows/application/removeWorkflowStep";
 import { renameWorkflowStep } from "@/modules/workflows/application/renameWorkflowStep";
 import { reorderWorkflowSteps } from "@/modules/workflows/application/reorderWorkflowSteps";
 import { startPersistedWorkflow } from "@/modules/workflows/application/startPersistedWorkflow";
+import { startPersistedWorkflowStep } from "@/modules/workflows/application/startPersistedWorkflowStep";
 import type { WorkflowApplicationDependencies } from "@/modules/workflows/application/workflowApplicationTypes";
 import {
   WorkflowBusinessError,
@@ -16,7 +19,10 @@ import {
   WorkflowValidationError,
 } from "@/modules/workflows/application/workflowUseCaseErrors";
 import {
+  WORKFLOW_EVENT_TYPES,
   WORKFLOW_STATUSES,
+  WORKFLOW_STEP_EVENT_TYPES,
+  WORKFLOW_STEP_STATUSES,
   type Workflow,
   type WorkflowEngineDependencies,
 } from "@/modules/workflows/domain/workflowEngine";
@@ -314,6 +320,184 @@ describe("workflow application use cases", () => {
     expect(runningWorkflow.status).toBe(WORKFLOW_STATUSES.running);
     expect(runningWorkflow.currentStepId).toBe(runningWorkflow.steps[0].id);
     expect(repository.calls.update).toBe(2);
+  });
+
+  it("executa etapas na ordem e conclui o fluxo ao finalizar a última etapa", async () => {
+    const { dependencies, repository } = createDependencies();
+    const workflow = await createPersistedWorkflow(dependencies);
+    const preparedWorkflow = await preparePersistedWorkflow(
+      dependencies,
+      workflow.id,
+    );
+    const runningWorkflow = await startPersistedWorkflow(
+      dependencies,
+      preparedWorkflow.id,
+    );
+
+    const firstStepRunning = await startPersistedWorkflowStep(dependencies, {
+      workflowId: runningWorkflow.id,
+      stepId: runningWorkflow.currentStepId ?? "",
+    });
+
+    expect(firstStepRunning.steps[0].status).toBe(
+      WORKFLOW_STEP_STATUSES.running,
+    );
+
+    const afterFirstStep = await completePersistedWorkflowStep(dependencies, {
+      workflowId: firstStepRunning.id,
+      stepId: firstStepRunning.currentStepId ?? "",
+      result: { message: "Primeira etapa concluída." },
+    });
+
+    expect(afterFirstStep.status).toBe(WORKFLOW_STATUSES.running);
+    expect(afterFirstStep.steps[0].status).toBe(
+      WORKFLOW_STEP_STATUSES.completed,
+    );
+    expect(afterFirstStep.currentStepId).toBe(afterFirstStep.steps[1].id);
+
+    const secondStepRunning = await startPersistedWorkflowStep(dependencies, {
+      workflowId: afterFirstStep.id,
+      stepId: afterFirstStep.currentStepId ?? "",
+    });
+    const completedWorkflow = await completePersistedWorkflowStep(dependencies, {
+      workflowId: secondStepRunning.id,
+      stepId: secondStepRunning.currentStepId ?? "",
+      result: { message: "Segunda etapa concluída." },
+    });
+
+    expect(completedWorkflow.status).toBe(WORKFLOW_STATUSES.completed);
+    expect(completedWorkflow.currentStepId).toBeUndefined();
+    expect(completedWorkflow.steps.map((step) => step.status)).toEqual([
+      WORKFLOW_STEP_STATUSES.completed,
+      WORKFLOW_STEP_STATUSES.completed,
+    ]);
+    expect(completedWorkflow.executionHistory.map((event) => event.type)).toEqual(
+      expect.arrayContaining([
+        WORKFLOW_EVENT_TYPES.executionStarted,
+        WORKFLOW_STEP_EVENT_TYPES.stepStarted,
+        WORKFLOW_STEP_EVENT_TYPES.stepCompleted,
+        WORKFLOW_EVENT_TYPES.workflowCompleted,
+      ]),
+    );
+    expect(repository.calls.update).toBe(6);
+  });
+
+  it("não atualiza o repositório ao tentar executar etapa fora da ordem", async () => {
+    const { dependencies, repository } = createDependencies();
+    const workflow = await createPersistedWorkflow(dependencies);
+    const preparedWorkflow = await preparePersistedWorkflow(
+      dependencies,
+      workflow.id,
+    );
+    const runningWorkflow = await startPersistedWorkflow(
+      dependencies,
+      preparedWorkflow.id,
+    );
+    const updatesBeforeInvalidAction = repository.calls.update;
+
+    await expect(
+      startPersistedWorkflowStep(dependencies, {
+        workflowId: runningWorkflow.id,
+        stepId: runningWorkflow.steps[1].id,
+      }),
+    ).rejects.toBeInstanceOf(WorkflowBusinessError);
+
+    expect(repository.calls.update).toBe(updatesBeforeInvalidAction);
+    expect(repository.workflows.get(workflow.id)?.steps[1].status).toBe(
+      WORKFLOW_STEP_STATUSES.pending,
+    );
+  });
+
+  it("registra falha da execução e atualiza histórico", async () => {
+    const { dependencies, repository } = createDependencies();
+    const workflow = await createPersistedWorkflow(dependencies);
+    const preparedWorkflow = await preparePersistedWorkflow(
+      dependencies,
+      workflow.id,
+    );
+    const runningWorkflow = await startPersistedWorkflow(
+      dependencies,
+      preparedWorkflow.id,
+    );
+    const stepRunningWorkflow = await startPersistedWorkflowStep(dependencies, {
+      workflowId: runningWorkflow.id,
+      stepId: runningWorkflow.currentStepId ?? "",
+    });
+
+    const failedWorkflow = await registerPersistedWorkflowFailure(dependencies, {
+      workflowId: stepRunningWorkflow.id,
+      stepId: stepRunningWorkflow.currentStepId,
+      failure: { reason: "Serviço externo indisponível." },
+    });
+
+    expect(failedWorkflow.status).toBe(WORKFLOW_STATUSES.failed);
+    expect(failedWorkflow.failureReason).toBe("Serviço externo indisponível.");
+    expect(failedWorkflow.steps[0].status).toBe(WORKFLOW_STEP_STATUSES.failed);
+    expect(failedWorkflow.executionHistory.map((event) => event.type)).toEqual(
+      expect.arrayContaining([
+        WORKFLOW_STEP_EVENT_TYPES.stepFailed,
+        WORKFLOW_EVENT_TYPES.workflowFailed,
+      ]),
+    );
+    expect(repository.workflows.get(workflow.id)?.status).toBe(
+      WORKFLOW_STATUSES.failed,
+    );
+  });
+
+  it("não atualiza o repositório quando falha não possui motivo", async () => {
+    const { dependencies, repository } = createDependencies();
+    const workflow = await createPersistedWorkflow(dependencies);
+    const preparedWorkflow = await preparePersistedWorkflow(
+      dependencies,
+      workflow.id,
+    );
+    const runningWorkflow = await startPersistedWorkflow(
+      dependencies,
+      preparedWorkflow.id,
+    );
+    const updatesBeforeInvalidAction = repository.calls.update;
+
+    await expect(
+      registerPersistedWorkflowFailure(dependencies, {
+        workflowId: runningWorkflow.id,
+        failure: { reason: "   " },
+      }),
+    ).rejects.toBeInstanceOf(WorkflowValidationError);
+
+    expect(repository.calls.update).toBe(updatesBeforeInvalidAction);
+    expect(repository.workflows.get(workflow.id)?.status).toBe(
+      WORKFLOW_STATUSES.running,
+    );
+  });
+
+  it("cancela execução em andamento, limpa etapa atual e registra histórico", async () => {
+    const { dependencies, repository } = createDependencies();
+    const workflow = await createPersistedWorkflow(dependencies);
+    const preparedWorkflow = await preparePersistedWorkflow(
+      dependencies,
+      workflow.id,
+    );
+    const runningWorkflow = await startPersistedWorkflow(
+      dependencies,
+      preparedWorkflow.id,
+    );
+
+    const cancelledWorkflow = await cancelPersistedWorkflow(dependencies, {
+      workflowId: runningWorkflow.id,
+      reason: "Solicitação interrompida.",
+    });
+
+    expect(cancelledWorkflow.status).toBe(WORKFLOW_STATUSES.cancelled);
+    expect(cancelledWorkflow.currentStepId).toBeUndefined();
+    expect(cancelledWorkflow.cancellationReason).toBe(
+      "Solicitação interrompida.",
+    );
+    expect(cancelledWorkflow.executionHistory.at(-1)?.type).toBe(
+      WORKFLOW_EVENT_TYPES.workflowCancelled,
+    );
+    expect(repository.workflows.get(workflow.id)?.status).toBe(
+      WORKFLOW_STATUSES.cancelled,
+    );
   });
 
   it("cancela fluxo com motivo obrigatório e atualiza o repositório", async () => {
