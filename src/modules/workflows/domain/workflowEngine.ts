@@ -98,6 +98,10 @@ export const PROHIBITED_WORKFLOW_TRANSITIONS: ReadonlyArray<WorkflowTransition> 
 export const WORKFLOW_EVENT_TYPES = {
   workflowCreated: "workflow.created",
   workflowPrepared: "workflow.prepared",
+  workflowStepAdded: "workflow.step_added",
+  workflowStepRenamed: "workflow.step_renamed",
+  workflowStepRemoved: "workflow.step_removed",
+  workflowStepsReordered: "workflow.steps_reordered",
   executionStarted: "execution.started",
   workflowCompleted: "workflow.completed",
   workflowFailed: "workflow.failed",
@@ -213,6 +217,27 @@ export type PrepareWorkflowInput = Readonly<{
   workflow: Workflow;
 }>;
 
+export type AddWorkflowStepInput = Readonly<{
+  workflow: Workflow;
+  name: string;
+}>;
+
+export type RenameWorkflowStepInput = Readonly<{
+  workflow: Workflow;
+  stepId: WorkflowStepId;
+  name: string;
+}>;
+
+export type RemoveWorkflowStepInput = Readonly<{
+  workflow: Workflow;
+  stepId: WorkflowStepId;
+}>;
+
+export type ReorderWorkflowStepsInput = Readonly<{
+  workflow: Workflow;
+  orderedStepIds: ReadonlyArray<WorkflowStepId>;
+}>;
+
 export type StartWorkflowExecutionInput = Readonly<{
   workflow: Workflow;
 }>;
@@ -299,6 +324,16 @@ export type WorkflowEngineService = Readonly<{
   prepareWorkflow: (
     input: PrepareWorkflowInput,
   ) => WorkflowEngineResult<Workflow>;
+  addStep: (input: AddWorkflowStepInput) => WorkflowEngineResult<Workflow>;
+  renameStep: (
+    input: RenameWorkflowStepInput,
+  ) => WorkflowEngineResult<Workflow>;
+  removeStep: (
+    input: RemoveWorkflowStepInput,
+  ) => WorkflowEngineResult<Workflow>;
+  reorderSteps: (
+    input: ReorderWorkflowStepsInput,
+  ) => WorkflowEngineResult<Workflow>;
   startExecution: (
     input: StartWorkflowExecutionInput,
   ) => WorkflowEngineResult<Workflow>;
@@ -334,6 +369,18 @@ export function isCancellationReasonValid(reason: string) {
   return reason.trim().length > 0;
 }
 
+export function canChangeWorkflowSteps(workflow: Workflow) {
+  return workflow.status === WORKFLOW_STATUSES.draft;
+}
+
+export function areWorkflowStepOrdersSequential(
+  steps: ReadonlyArray<WorkflowStep>,
+) {
+  return [...steps]
+    .sort((firstStep, secondStep) => firstStep.order - secondStep.order)
+    .every((step, index) => step.order === index + 1);
+}
+
 export function isWorkflowValid(workflow: Workflow) {
   if (!workflow.id.trim() || !workflow.name.trim() || workflow.steps.length === 0) {
     return false;
@@ -342,7 +389,7 @@ export function isWorkflowValid(workflow: Workflow) {
   const stepIds = new Set<WorkflowStepId>();
   const stepOrders = new Set<number>();
 
-  return workflow.steps.every((step) => {
+  const hasValidSteps = workflow.steps.every((step) => {
     const isStepValid =
       step.id.trim().length > 0 &&
       step.name.trim().length > 0 &&
@@ -356,6 +403,8 @@ export function isWorkflowValid(workflow: Workflow) {
 
     return isStepValid;
   });
+
+  return hasValidSteps && areWorkflowStepOrdersSequential(workflow.steps);
 }
 
 export function canExecuteWorkflow(workflow: Workflow) {

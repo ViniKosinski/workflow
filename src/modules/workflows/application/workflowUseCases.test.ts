@@ -1,9 +1,13 @@
 import { describe, expect, it } from "vitest";
+import { addWorkflowStep } from "@/modules/workflows/application/addWorkflowStep";
 import { cancelPersistedWorkflow } from "@/modules/workflows/application/cancelPersistedWorkflow";
 import { createWorkflow } from "@/modules/workflows/application/createWorkflow";
 import { getPersistedWorkflowById } from "@/modules/workflows/application/getPersistedWorkflowById";
 import { listPersistedWorkflows } from "@/modules/workflows/application/listPersistedWorkflows";
 import { preparePersistedWorkflow } from "@/modules/workflows/application/preparePersistedWorkflow";
+import { removeWorkflowStep } from "@/modules/workflows/application/removeWorkflowStep";
+import { renameWorkflowStep } from "@/modules/workflows/application/renameWorkflowStep";
+import { reorderWorkflowSteps } from "@/modules/workflows/application/reorderWorkflowSteps";
 import { startPersistedWorkflow } from "@/modules/workflows/application/startPersistedWorkflow";
 import type { WorkflowApplicationDependencies } from "@/modules/workflows/application/workflowApplicationTypes";
 import {
@@ -192,6 +196,100 @@ describe("workflow application use cases", () => {
     expect(repository.workflows.get(workflow.id)?.status).toBe(
       WORKFLOW_STATUSES.ready,
     );
+  });
+
+  it("adiciona etapa usando motor e atualiza o repositório", async () => {
+    const { dependencies, repository } = createDependencies();
+    const workflow = await createPersistedWorkflow(dependencies);
+
+    const updatedWorkflow = await addWorkflowStep(dependencies, {
+      workflowId: workflow.id,
+      name: "Notificar solicitante",
+    });
+
+    expect(updatedWorkflow.steps).toHaveLength(3);
+    expect(updatedWorkflow.steps[2].name).toBe("Notificar solicitante");
+    expect(repository.calls.findById).toBe(1);
+    expect(repository.calls.update).toBe(1);
+  });
+
+  it("renomeia etapa usando operação explícita do motor", async () => {
+    const { dependencies, repository } = createDependencies();
+    const workflow = await createPersistedWorkflow(dependencies);
+
+    const updatedWorkflow = await renameWorkflowStep(dependencies, {
+      workflowId: workflow.id,
+      stepId: workflow.steps[0].id,
+      name: "Solicitar cotação",
+    });
+
+    expect(updatedWorkflow.steps[0].name).toBe("Solicitar cotação");
+    expect(repository.calls.update).toBe(1);
+  });
+
+  it("remove etapa e preserva ordem consistente", async () => {
+    const { dependencies, repository } = createDependencies();
+    const workflow = await createPersistedWorkflow(dependencies);
+
+    const updatedWorkflow = await removeWorkflowStep(dependencies, {
+      workflowId: workflow.id,
+      stepId: workflow.steps[0].id,
+    });
+
+    expect(updatedWorkflow.steps).toHaveLength(1);
+    expect(updatedWorkflow.steps[0].order).toBe(1);
+    expect(repository.calls.update).toBe(1);
+  });
+
+  it("reordena etapas em uma única atualização válida", async () => {
+    const { dependencies, repository } = createDependencies();
+    const workflow = await createPersistedWorkflow(dependencies);
+
+    const updatedWorkflow = await reorderWorkflowSteps(dependencies, {
+      workflowId: workflow.id,
+      orderedStepIds: [workflow.steps[1].id, workflow.steps[0].id],
+    });
+
+    expect(updatedWorkflow.steps.map((step) => step.id)).toEqual([
+      workflow.steps[1].id,
+      workflow.steps[0].id,
+    ]);
+    expect(updatedWorkflow.steps.map((step) => step.order)).toEqual([1, 2]);
+    expect(repository.calls.update).toBe(1);
+  });
+
+  it("não persiste reordenação inválida", async () => {
+    const { dependencies, repository } = createDependencies();
+    const workflow = await createPersistedWorkflow(dependencies);
+
+    await expect(
+      reorderWorkflowSteps(dependencies, {
+        workflowId: workflow.id,
+        orderedStepIds: [workflow.steps[0].id],
+      }),
+    ).rejects.toBeInstanceOf(WorkflowBusinessError);
+
+    expect(repository.calls.update).toBe(0);
+    expect(repository.workflows.get(workflow.id)?.steps).toEqual(workflow.steps);
+  });
+
+  it("bloqueia alteração de etapa em fluxo fora do rascunho", async () => {
+    const { dependencies, repository } = createDependencies();
+    const workflow = await createPersistedWorkflow(dependencies);
+    const preparedWorkflow = await preparePersistedWorkflow(
+      dependencies,
+      workflow.id,
+    );
+
+    await expect(
+      addWorkflowStep(dependencies, {
+        workflowId: preparedWorkflow.id,
+        name: "Etapa bloqueada",
+      }),
+    ).rejects.toBeInstanceOf(WorkflowBusinessError);
+
+    expect(repository.calls.update).toBe(1);
+    expect(repository.workflows.get(workflow.id)?.steps).toHaveLength(2);
   });
 
   it("inicia execução somente após preparação", async () => {

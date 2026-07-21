@@ -6,7 +6,11 @@ import {
   type CancelWorkflowInput,
   type CompleteWorkflowStepInput,
   type CreateWorkflowInput,
+  type AddWorkflowStepInput,
   type PrepareWorkflowInput,
+  type RemoveWorkflowStepInput,
+  type RenameWorkflowStepInput,
+  type ReorderWorkflowStepsInput,
   type RegisterWorkflowFailureInput,
   type StartWorkflowExecutionInput,
   type StartWorkflowStepInput,
@@ -23,6 +27,7 @@ import {
   type WorkflowStep,
   type WorkflowStepExecutionEvent,
   type WorkflowStepId,
+  canChangeWorkflowSteps,
   canExecuteWorkflow,
   isCancellationReasonValid,
   isTerminalWorkflowStatus,
@@ -128,6 +133,38 @@ export function createWorkflowEngine(
     update: (step: WorkflowStep) => WorkflowStep,
   ) => workflow.steps.map((step) => (step.id === stepId ? update(step) : step));
 
+  const normalizeStepOrders = (steps: ReadonlyArray<WorkflowStep>) =>
+    [...steps]
+      .sort((firstStep, secondStep) => firstStep.order - secondStep.order)
+      .map((step, index) => ({
+        ...step,
+        order: index + 1,
+      }));
+
+  const blockStepChange = (workflow: Workflow, message: string) => {
+    const event = createLifecycleEvent(
+      { workflowId: workflow.id },
+      {
+        type: WORKFLOW_EVENT_TYPES.workflowTransitionBlocked,
+        fromStatus: workflow.status,
+        message,
+      },
+    );
+
+    return event;
+  };
+
+  const validateDraftStepChange = (workflow: Workflow) => {
+    if (!canChangeWorkflowSteps(workflow)) {
+      return blockStepChange(
+        workflow,
+        "Etapas sÃ³ podem ser alteradas em fluxos em rascunho.",
+      );
+    }
+
+    return null;
+  };
+
   return {
     createWorkflow(input: CreateWorkflowInput) {
       const workflowId = input.id ?? dependencies.idGenerator.createWorkflowId();
@@ -172,6 +209,287 @@ export function createWorkflowEngine(
       }
 
       return succeed(workflow, [event]);
+    },
+
+    addStep(input: AddWorkflowStepInput) {
+      const { workflow } = input;
+      const blockedEvent = validateDraftStepChange(workflow);
+
+      if (blockedEvent) {
+        return fail<Workflow>(
+          {
+            code: "INVALID_OPERATION",
+            message: "Etapas sÃ³ podem ser alteradas em fluxos em rascunho.",
+            event: blockedEvent,
+          },
+          [blockedEvent],
+        );
+      }
+
+      const stepName = input.name.trim();
+
+      if (!stepName) {
+        const event = blockStepChange(workflow, "Nome da etapa Ã© obrigatÃ³rio.");
+
+        return fail<Workflow>(
+          {
+            code: "INVALID_STEP",
+            message: "Nome da etapa Ã© obrigatÃ³rio.",
+            event,
+          },
+          [event],
+        );
+      }
+
+      const step: WorkflowStep = {
+        id: dependencies.idGenerator.createStepId(),
+        name: stepName,
+        order: workflow.steps.length + 1,
+        status: WORKFLOW_STEP_STATUSES.pending,
+      };
+      const event = createLifecycleEvent(
+        { workflowId: workflow.id },
+        {
+          type: WORKFLOW_EVENT_TYPES.workflowStepAdded,
+          message: "Etapa adicionada.",
+          metadata: { stepId: step.id, stepName },
+        },
+      );
+
+      const updatedWorkflow: Workflow = {
+        ...workflow,
+        steps: [...workflow.steps, step],
+        updatedAt: dependencies.clock.now(),
+        executionHistory: [...workflow.executionHistory, event],
+      };
+
+      if (!isWorkflowValid(updatedWorkflow)) {
+        return fail<Workflow>(
+          {
+            code: "INVALID_WORKFLOW",
+            message: "Workflow invÃ¡lido.",
+            event,
+          },
+          [event],
+        );
+      }
+
+      return succeed(updatedWorkflow, [event]);
+    },
+
+    renameStep(input: RenameWorkflowStepInput) {
+      const { workflow, stepId } = input;
+      const blockedEvent = validateDraftStepChange(workflow);
+
+      if (blockedEvent) {
+        return fail<Workflow>(
+          {
+            code: "INVALID_OPERATION",
+            message: "Etapas sÃ³ podem ser alteradas em fluxos em rascunho.",
+            event: blockedEvent,
+          },
+          [blockedEvent],
+        );
+      }
+
+      const step = workflow.steps.find((candidate) => candidate.id === stepId);
+      const stepName = input.name.trim();
+
+      if (!step || !stepName) {
+        const event = blockStepChange(
+          workflow,
+          !step ? "Etapa nÃ£o encontrada." : "Nome da etapa Ã© obrigatÃ³rio.",
+        );
+
+        return fail<Workflow>(
+          {
+            code: "INVALID_STEP",
+            message: !step ? "Etapa nÃ£o encontrada." : "Nome da etapa Ã© obrigatÃ³rio.",
+            event,
+          },
+          [event],
+        );
+      }
+
+      const event = createLifecycleEvent(
+        { workflowId: workflow.id },
+        {
+          type: WORKFLOW_EVENT_TYPES.workflowStepRenamed,
+          message: "Etapa renomeada.",
+          metadata: { stepId, previousName: step.name, stepName },
+        },
+      );
+
+      const updatedWorkflow: Workflow = {
+        ...workflow,
+        updatedAt: dependencies.clock.now(),
+        steps: replaceStep(workflow, stepId, (currentStep) => ({
+          ...currentStep,
+          name: stepName,
+        })),
+        executionHistory: [...workflow.executionHistory, event],
+      };
+
+      if (!isWorkflowValid(updatedWorkflow)) {
+        return fail<Workflow>(
+          {
+            code: "INVALID_WORKFLOW",
+            message: "Workflow invÃ¡lido.",
+            event,
+          },
+          [event],
+        );
+      }
+
+      return succeed(updatedWorkflow, [event]);
+    },
+
+    removeStep(input: RemoveWorkflowStepInput) {
+      const { workflow, stepId } = input;
+      const blockedEvent = validateDraftStepChange(workflow);
+
+      if (blockedEvent) {
+        return fail<Workflow>(
+          {
+            code: "INVALID_OPERATION",
+            message: "Etapas sÃ³ podem ser alteradas em fluxos em rascunho.",
+            event: blockedEvent,
+          },
+          [blockedEvent],
+        );
+      }
+
+      const step = workflow.steps.find((candidate) => candidate.id === stepId);
+
+      if (!step) {
+        const event = blockStepChange(workflow, "Etapa nÃ£o encontrada.");
+
+        return fail<Workflow>(
+          {
+            code: "INVALID_STEP",
+            message: "Etapa nÃ£o encontrada.",
+            event,
+          },
+          [event],
+        );
+      }
+
+      if (workflow.steps.length === 1) {
+        const event = blockStepChange(
+          workflow,
+          "O fluxo precisa manter pelo menos uma etapa.",
+        );
+
+        return fail<Workflow>(
+          {
+            code: "INVALID_OPERATION",
+            message: "O fluxo precisa manter pelo menos uma etapa.",
+            event,
+          },
+          [event],
+        );
+      }
+
+      const event = createLifecycleEvent(
+        { workflowId: workflow.id },
+        {
+          type: WORKFLOW_EVENT_TYPES.workflowStepRemoved,
+          message: "Etapa removida.",
+          metadata: { stepId, stepName: step.name },
+        },
+      );
+      const updatedWorkflow: Workflow = {
+        ...workflow,
+        updatedAt: dependencies.clock.now(),
+        steps: normalizeStepOrders(
+          workflow.steps.filter((candidate) => candidate.id !== stepId),
+        ),
+        executionHistory: [...workflow.executionHistory, event],
+      };
+
+      if (!isWorkflowValid(updatedWorkflow)) {
+        return fail<Workflow>(
+          {
+            code: "INVALID_WORKFLOW",
+            message: "Workflow invÃ¡lido.",
+            event,
+          },
+          [event],
+        );
+      }
+
+      return succeed(updatedWorkflow, [event]);
+    },
+
+    reorderSteps(input: ReorderWorkflowStepsInput) {
+      const { workflow, orderedStepIds } = input;
+      const blockedEvent = validateDraftStepChange(workflow);
+
+      if (blockedEvent) {
+        return fail<Workflow>(
+          {
+            code: "INVALID_OPERATION",
+            message: "Etapas sÃ³ podem ser alteradas em fluxos em rascunho.",
+            event: blockedEvent,
+          },
+          [blockedEvent],
+        );
+      }
+
+      const existingStepIds = new Set(workflow.steps.map((step) => step.id));
+      const requestedStepIds = new Set(orderedStepIds);
+      const hasAllSteps =
+        orderedStepIds.length === workflow.steps.length &&
+        requestedStepIds.size === workflow.steps.length &&
+        orderedStepIds.every((stepId) => existingStepIds.has(stepId));
+
+      if (!hasAllSteps) {
+        const event = blockStepChange(workflow, "Nova ordem de etapas invÃ¡lida.");
+
+        return fail<Workflow>(
+          {
+            code: "INVALID_STEP",
+            message: "Nova ordem de etapas invÃ¡lida.",
+            event,
+          },
+          [event],
+        );
+      }
+
+      const stepsById = new Map(workflow.steps.map((step) => [step.id, step]));
+      const reorderedSteps = orderedStepIds.map((stepId, index) => ({
+        ...stepsById.get(stepId)!,
+        order: index + 1,
+      }));
+
+      const event = createLifecycleEvent(
+        { workflowId: workflow.id },
+        {
+          type: WORKFLOW_EVENT_TYPES.workflowStepsReordered,
+          message: "Etapas reordenadas.",
+          metadata: { orderedStepIds: orderedStepIds.join(",") },
+        },
+      );
+
+      const updatedWorkflow: Workflow = {
+        ...workflow,
+        updatedAt: dependencies.clock.now(),
+        steps: reorderedSteps,
+        executionHistory: [...workflow.executionHistory, event],
+      };
+
+      if (!isWorkflowValid(updatedWorkflow)) {
+        return fail<Workflow>(
+          {
+            code: "INVALID_WORKFLOW",
+            message: "Workflow invÃ¡lido.",
+            event,
+          },
+          [event],
+        );
+      }
+
+      return succeed(updatedWorkflow, [event]);
     },
 
     prepareWorkflow(input: PrepareWorkflowInput) {

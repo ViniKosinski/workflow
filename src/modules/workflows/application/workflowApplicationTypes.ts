@@ -30,6 +30,21 @@ export type WorkflowStepActionInput = Readonly<{
   stepId: string;
 }>;
 
+export type AddWorkflowStepUseCaseInput = Readonly<{
+  workflowId: string;
+  name: string;
+}>;
+
+export type RenameWorkflowStepUseCaseInput = WorkflowStepActionInput &
+  Readonly<{
+    name: string;
+  }>;
+
+export type ReorderWorkflowStepsUseCaseInput = Readonly<{
+  workflowId: string;
+  orderedStepIds: ReadonlyArray<string>;
+}>;
+
 export type CompleteWorkflowStepUseCaseInput = WorkflowStepActionInput &
   Readonly<{
     result: WorkflowStepCompletionResult;

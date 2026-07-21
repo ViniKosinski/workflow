@@ -184,6 +184,159 @@ describe("WorkflowEngine", () => {
     });
   });
 
+  describe("gerenciamento de etapas", () => {
+    it("adiciona etapa somente em fluxo em rascunho", () => {
+      const engine = createEngine();
+      const workflow = createValidWorkflow(engine);
+      const result = engine.addStep({
+        workflow,
+        name: "Notificar financeiro",
+      });
+
+      expect(result.success).toBe(true);
+
+      if (!result.success) {
+        throw new Error(result.error.message);
+      }
+
+      expect(result.data.steps).toHaveLength(3);
+      expect(result.data.steps[2]).toMatchObject({
+        name: "Notificar financeiro",
+        order: 3,
+        status: WORKFLOW_STEP_STATUSES.pending,
+      });
+      expect(result.data.executionHistory.at(-1)?.type).toBe(
+        WORKFLOW_EVENT_TYPES.workflowStepAdded,
+      );
+    });
+
+    it("renomeia etapa em fluxo em rascunho", () => {
+      const engine = createEngine();
+      const workflow = createValidWorkflow(engine);
+      const result = engine.renameStep({
+        workflow,
+        stepId: workflow.steps[0].id,
+        name: "Solicitar cotação",
+      });
+
+      expect(result.success).toBe(true);
+
+      if (!result.success) {
+        throw new Error(result.error.message);
+      }
+
+      expect(result.data.steps[0].name).toBe("Solicitar cotação");
+      expect(result.data.executionHistory.at(-1)?.type).toBe(
+        WORKFLOW_EVENT_TYPES.workflowStepRenamed,
+      );
+    });
+
+    it("remove etapa e normaliza a ordem", () => {
+      const engine = createEngine();
+      const workflow = createValidWorkflow(engine);
+      const result = engine.removeStep({
+        workflow,
+        stepId: workflow.steps[0].id,
+      });
+
+      expect(result.success).toBe(true);
+
+      if (!result.success) {
+        throw new Error(result.error.message);
+      }
+
+      expect(result.data.steps).toHaveLength(1);
+      expect(result.data.steps[0].order).toBe(1);
+      expect(result.data.executionHistory.at(-1)?.type).toBe(
+        WORKFLOW_EVENT_TYPES.workflowStepRemoved,
+      );
+    });
+
+    it("impede remover a última etapa", () => {
+      const engine = createEngine();
+      const createdResult = engine.createWorkflow({
+        name: "Fluxo simples",
+        steps: [{ name: "Etapa única", order: 1 }],
+      });
+
+      expect(createdResult.success).toBe(true);
+
+      if (!createdResult.success) {
+        throw new Error(createdResult.error.message);
+      }
+
+      const result = engine.removeStep({
+        workflow: createdResult.data,
+        stepId: createdResult.data.steps[0].id,
+      });
+
+      expect(result.success).toBe(false);
+
+      if (result.success) {
+        throw new Error("Última etapa foi removida.");
+      }
+
+      expect(result.error.code).toBe("INVALID_OPERATION");
+    });
+
+    it("reordena etapas de forma atômica", () => {
+      const engine = createEngine();
+      const workflow = createValidWorkflow(engine);
+      const invalidResult = engine.reorderSteps({
+        workflow,
+        orderedStepIds: [workflow.steps[1].id],
+      });
+
+      expect(invalidResult.success).toBe(false);
+
+      if (invalidResult.success) {
+        throw new Error("Reordenação inválida foi aceita.");
+      }
+
+      expect(workflow.steps.map((step) => step.id)).toEqual([
+        workflow.steps[0].id,
+        workflow.steps[1].id,
+      ]);
+
+      const result = engine.reorderSteps({
+        workflow,
+        orderedStepIds: [workflow.steps[1].id, workflow.steps[0].id],
+      });
+
+      expect(result.success).toBe(true);
+
+      if (!result.success) {
+        throw new Error(result.error.message);
+      }
+
+      expect(result.data.steps.map((step) => step.id)).toEqual([
+        workflow.steps[1].id,
+        workflow.steps[0].id,
+      ]);
+      expect(result.data.steps.map((step) => step.order)).toEqual([1, 2]);
+      expect(result.data.executionHistory.at(-1)?.type).toBe(
+        WORKFLOW_EVENT_TYPES.workflowStepsReordered,
+      );
+    });
+
+    it("bloqueia alterações de etapas fora do rascunho", () => {
+      const engine = createEngine();
+      const workflow = prepareWorkflow(engine, createValidWorkflow(engine));
+      const result = engine.addStep({
+        workflow,
+        name: "Etapa indevida",
+      });
+
+      expect(result.success).toBe(false);
+
+      if (result.success) {
+        throw new Error("Etapa foi alterada fora do rascunho.");
+      }
+
+      expect(result.error.code).toBe("INVALID_OPERATION");
+    });
+  });
+
   describe("execução", () => {
     it("inicia um fluxo pronto", () => {
       const engine = createEngine();

@@ -1,5 +1,7 @@
 import Link from "next/link";
+import { WORKFLOW_STATUSES } from "@/modules/workflows/domain/workflowEngine";
 import { getPersistedWorkflowById } from "@/modules/workflows/application/getPersistedWorkflowById";
+import { DraftWorkflowStepsEditor } from "@/modules/workflows/presentation/components/DraftWorkflowStepsEditor";
 import { WorkflowActions } from "@/modules/workflows/presentation/components/WorkflowActions";
 import { WorkflowHistory } from "@/modules/workflows/presentation/components/WorkflowHistory";
 import { WorkflowStatusBadge } from "@/modules/workflows/presentation/components/WorkflowStatusBadge";
@@ -48,7 +50,11 @@ export async function WorkflowDetailsPage({
           </div>
 
           <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
-            <WorkflowStepsList workflow={workflow} />
+            {workflow.status === WORKFLOW_STATUSES.draft ? (
+              <DraftWorkflowStepsEditor workflow={workflow} />
+            ) : (
+              <WorkflowStepsList workflow={workflow} />
+            )}
             <WorkflowHistory workflow={workflow} />
           </div>
         </section>
