@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { getWorkflowSummaries } from "@/modules/workflows/application/getWorkflowSummaries";
 import { WorkflowCard } from "@/modules/workflows/presentation/components/WorkflowCard";
 import { workflowDependencies } from "@/modules/workflows/workflowDependencies";
@@ -28,7 +29,9 @@ export function DashboardPage() {
             </p>
           </div>
 
-          <Button>Nova automação</Button>
+          <Link href="/workflows/new">
+            <Button>Nova automação</Button>
+          </Link>
         </div>
 
         <div className="grid gap-4 md:grid-cols-3">
