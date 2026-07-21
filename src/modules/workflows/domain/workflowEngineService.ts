@@ -158,7 +158,7 @@ export function createWorkflowEngine(
     if (!canChangeWorkflowSteps(workflow)) {
       return blockStepChange(
         workflow,
-        "Etapas sÃ³ podem ser alteradas em fluxos em rascunho.",
+        "Etapas só podem ser alteradas em fluxos em rascunho.",
       );
     }
 
@@ -219,7 +219,7 @@ export function createWorkflowEngine(
         return fail<Workflow>(
           {
             code: "INVALID_OPERATION",
-            message: "Etapas sÃ³ podem ser alteradas em fluxos em rascunho.",
+            message: "Etapas só podem ser alteradas em fluxos em rascunho.",
             event: blockedEvent,
           },
           [blockedEvent],
@@ -229,12 +229,12 @@ export function createWorkflowEngine(
       const stepName = input.name.trim();
 
       if (!stepName) {
-        const event = blockStepChange(workflow, "Nome da etapa Ã© obrigatÃ³rio.");
+        const event = blockStepChange(workflow, "Nome da etapa é obrigatório.");
 
         return fail<Workflow>(
           {
             code: "INVALID_STEP",
-            message: "Nome da etapa Ã© obrigatÃ³rio.",
+            message: "Nome da etapa é obrigatório.",
             event,
           },
           [event],
@@ -267,7 +267,7 @@ export function createWorkflowEngine(
         return fail<Workflow>(
           {
             code: "INVALID_WORKFLOW",
-            message: "Workflow invÃ¡lido.",
+            message: "Workflow inválido.",
             event,
           },
           [event],
@@ -285,7 +285,7 @@ export function createWorkflowEngine(
         return fail<Workflow>(
           {
             code: "INVALID_OPERATION",
-            message: "Etapas sÃ³ podem ser alteradas em fluxos em rascunho.",
+            message: "Etapas só podem ser alteradas em fluxos em rascunho.",
             event: blockedEvent,
           },
           [blockedEvent],
@@ -298,13 +298,13 @@ export function createWorkflowEngine(
       if (!step || !stepName) {
         const event = blockStepChange(
           workflow,
-          !step ? "Etapa nÃ£o encontrada." : "Nome da etapa Ã© obrigatÃ³rio.",
+          !step ? "Etapa não encontrada." : "Nome da etapa é obrigatório.",
         );
 
         return fail<Workflow>(
           {
             code: "INVALID_STEP",
-            message: !step ? "Etapa nÃ£o encontrada." : "Nome da etapa Ã© obrigatÃ³rio.",
+            message: !step ? "Etapa não encontrada." : "Nome da etapa é obrigatório.",
             event,
           },
           [event],
@@ -334,7 +334,7 @@ export function createWorkflowEngine(
         return fail<Workflow>(
           {
             code: "INVALID_WORKFLOW",
-            message: "Workflow invÃ¡lido.",
+            message: "Workflow inválido.",
             event,
           },
           [event],
@@ -352,7 +352,7 @@ export function createWorkflowEngine(
         return fail<Workflow>(
           {
             code: "INVALID_OPERATION",
-            message: "Etapas sÃ³ podem ser alteradas em fluxos em rascunho.",
+            message: "Etapas só podem ser alteradas em fluxos em rascunho.",
             event: blockedEvent,
           },
           [blockedEvent],
@@ -362,12 +362,12 @@ export function createWorkflowEngine(
       const step = workflow.steps.find((candidate) => candidate.id === stepId);
 
       if (!step) {
-        const event = blockStepChange(workflow, "Etapa nÃ£o encontrada.");
+        const event = blockStepChange(workflow, "Etapa não encontrada.");
 
         return fail<Workflow>(
           {
             code: "INVALID_STEP",
-            message: "Etapa nÃ£o encontrada.",
+            message: "Etapa não encontrada.",
             event,
           },
           [event],
@@ -411,7 +411,7 @@ export function createWorkflowEngine(
         return fail<Workflow>(
           {
             code: "INVALID_WORKFLOW",
-            message: "Workflow invÃ¡lido.",
+            message: "Workflow inválido.",
             event,
           },
           [event],
@@ -429,7 +429,7 @@ export function createWorkflowEngine(
         return fail<Workflow>(
           {
             code: "INVALID_OPERATION",
-            message: "Etapas sÃ³ podem ser alteradas em fluxos em rascunho.",
+            message: "Etapas só podem ser alteradas em fluxos em rascunho.",
             event: blockedEvent,
           },
           [blockedEvent],
@@ -444,12 +444,12 @@ export function createWorkflowEngine(
         orderedStepIds.every((stepId) => existingStepIds.has(stepId));
 
       if (!hasAllSteps) {
-        const event = blockStepChange(workflow, "Nova ordem de etapas invÃ¡lida.");
+        const event = blockStepChange(workflow, "Nova ordem de etapas inválida.");
 
         return fail<Workflow>(
           {
             code: "INVALID_STEP",
-            message: "Nova ordem de etapas invÃ¡lida.",
+            message: "Nova ordem de etapas inválida.",
             event,
           },
           [event],
@@ -482,7 +482,7 @@ export function createWorkflowEngine(
         return fail<Workflow>(
           {
             code: "INVALID_WORKFLOW",
-            message: "Workflow invÃ¡lido.",
+            message: "Workflow inválido.",
             event,
           },
           [event],

@@ -13,7 +13,7 @@ export async function addWorkflowStep(
   input: AddWorkflowStepUseCaseInput,
 ) {
   if (!input.name.trim()) {
-    throw new WorkflowValidationError("O nome da etapa Ã© obrigatÃ³rio.");
+    throw new WorkflowValidationError("O nome da etapa é obrigatório.");
   }
 
   const workflow = await getPersistedWorkflowById(

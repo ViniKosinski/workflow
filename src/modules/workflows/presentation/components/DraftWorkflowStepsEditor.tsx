@@ -55,7 +55,7 @@ export function DraftWorkflowStepsEditor({
         setError(
           "message" in payload && payload.message
             ? payload.message
-            : "NÃ£o foi possÃ­vel atualizar as etapas.",
+            : "Não foi possível atualizar as etapas.",
         );
         return null;
       }
