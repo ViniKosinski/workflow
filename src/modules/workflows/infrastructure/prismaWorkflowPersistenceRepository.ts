@@ -4,6 +4,7 @@ import type {
   WorkflowPersistenceRepository,
 } from "@/modules/workflows/domain/workflowPersistenceRepository";
 import type { Workflow, WorkflowId } from "@/modules/workflows/domain/workflowEngine";
+import { WorkflowConcurrencyError } from "@/modules/workflows/domain/workflowPersistenceRepository";
 import {
   mapIsoDateToDate,
   mapJsonToPrismaInput,
@@ -142,19 +143,21 @@ export class PrismaWorkflowPersistenceRepository
           organizationId: this.organizationId,
           createdByUserId: this.createdByUserId,
           name: workflow.name,
+          version: 1,
           createdAt: mapIsoDateToDate(workflow.createdAt),
           updatedAt: mapIsoDateToDate(workflow.updatedAt),
         },
       });
     } else {
       const definitionUpdate = await transaction.workflowDefinition.updateMany({
-        where: { id: workflow.id, organizationId: this.organizationId },
+        where: { id: workflow.id, organizationId: this.organizationId, version: workflow.version },
         data: {
           name: workflow.name,
+          version: { increment: 1 },
           updatedAt: mapIsoDateToDate(workflow.updatedAt),
         },
       });
-      if (definitionUpdate.count !== 1) throw new Error("Workflow was not found.");
+      if (definitionUpdate.count !== 1) throw new WorkflowConcurrencyError(workflow.id);
     }
 
     const definitionSteps = workflow.steps.map((step) => ({

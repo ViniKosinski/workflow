@@ -9,13 +9,15 @@ export async function changeOrganizationMemberRole(
   targetUserId: string,
   input: Readonly<{ role: OrganizationRole }>,
 ) {
-  const [actor, target] = await Promise.all([
-    dependencies.memberships.find(organizationId, actorUserId),
-    dependencies.memberships.find(organizationId, targetUserId),
-  ]);
-  if (!actor) throw new OrganizationNotFoundError();
-  if (!target) throw new MembershipNotFoundError();
   const role = parseAssignableRole(input.role);
-  dependencies.authorization.requireRoleChange(actor.role, target.role, role);
-  return dependencies.memberships.updateRole(organizationId, targetUserId, role, dependencies.clock.now().toISOString());
+  return dependencies.membershipTransactions.run(async (memberships) => {
+    const [actor, target] = await Promise.all([
+      memberships.find(organizationId, actorUserId),
+      memberships.find(organizationId, targetUserId),
+    ]);
+    if (!actor) throw new OrganizationNotFoundError();
+    if (!target) throw new MembershipNotFoundError();
+    dependencies.authorization.requireRoleChange(actor.role, target.role, role);
+    return memberships.updateRole(organizationId, targetUserId, role, dependencies.clock.now().toISOString());
+  });
 }

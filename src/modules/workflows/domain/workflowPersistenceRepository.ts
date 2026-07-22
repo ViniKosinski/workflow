@@ -17,3 +17,10 @@ export type WorkflowPersistenceRepository = Readonly<{
   update: (workflow: Workflow) => Promise<Workflow>;
   exists: (workflowId: WorkflowId) => Promise<boolean>;
 }>;
+
+export class WorkflowConcurrencyError extends Error {
+  constructor(readonly workflowId: WorkflowId) {
+    super(`Workflow ${workflowId} was modified by another operation.`);
+    this.name = "WorkflowConcurrencyError";
+  }
+}

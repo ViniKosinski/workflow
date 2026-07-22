@@ -46,6 +46,7 @@ export type WorkflowRunListRecord = Prisma.WorkflowRunGetPayload<{
 export function mapWorkflowRunListRecordToDomain(workflowRun: WorkflowRunListRecord): Workflow {
   return {
     id: workflowRun.id,
+    version: workflowRun.workflowDefinition.version,
     name: workflowRun.workflowDefinition.name,
     status: mapWorkflowStatusToDomain(workflowRun.status),
     steps: workflowRun.steps.map(mapWorkflowRunStepToDomain),
@@ -63,6 +64,7 @@ export function mapWorkflowRunListRecordToDomain(workflowRun: WorkflowRunListRec
 export function mapWorkflowRunToDomain(workflowRun: WorkflowRunRecord): Workflow {
   return {
     id: workflowRun.id,
+    version: workflowRun.workflowDefinition.version,
     name: workflowRun.workflowDefinition.name,
     status: mapWorkflowStatusToDomain(workflowRun.status),
     steps: workflowRun.steps.map(mapWorkflowRunStepToDomain),

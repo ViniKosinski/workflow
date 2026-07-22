@@ -1,4 +1,4 @@
-import { OrganizationRole as PrismaOrganizationRole, type PrismaClient } from "@prisma/client";
+import { OrganizationRole as PrismaOrganizationRole, type Prisma, type PrismaClient } from "@prisma/client";
 import type { OrganizationRole } from "@/modules/organizations/domain/membership";
 import type { MembershipRepository } from "@/modules/organizations/domain/membershipRepository";
 import { prismaClient } from "@/shared/infrastructure/database/prismaClient";
@@ -33,7 +33,7 @@ function mapMembership(record: {
 }
 
 export class PrismaMembershipRepository implements MembershipRepository {
-  constructor(private readonly prisma: PrismaClient = prismaClient) {}
+  constructor(private readonly prisma: PrismaClient | Prisma.TransactionClient = prismaClient) {}
 
   async find(organizationId: string, userId: string) {
     const record = await this.prisma.organizationMembership.findUnique({

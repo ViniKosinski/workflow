@@ -7,6 +7,7 @@ import {
   WorkflowNotFoundError,
   WorkflowValidationError,
 } from "@/modules/workflows/application/workflowUseCaseErrors";
+import { WorkflowConcurrencyError } from "@/modules/workflows/domain/workflowPersistenceRepository";
 import { HttpRequestError } from "@/shared/presentation/api/httpRequest";
 import { logServerError } from "@/shared/infrastructure/observability/logServerError";
 
@@ -37,6 +38,9 @@ export function workflowErrorResponse(error: unknown) {
 
   if (error instanceof WorkflowBusinessError) {
     return NextResponse.json({ message: error.message }, { status: 409 });
+  }
+  if (error instanceof WorkflowConcurrencyError) {
+    return NextResponse.json({ message: "O workflow foi alterado por outra operação. Recarregue e tente novamente." }, { status: 409 });
   }
 
   logServerError("workflow.request.failed", error);

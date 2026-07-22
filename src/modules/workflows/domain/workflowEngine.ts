@@ -188,6 +188,7 @@ export type WorkflowExecutionEvent =
 
 export type Workflow = Readonly<{
   id: WorkflowId;
+  version: number;
   name: string;
   status: WorkflowStatus;
   steps: ReadonlyArray<WorkflowStep>;
@@ -382,7 +383,7 @@ export function areWorkflowStepOrdersSequential(
 }
 
 export function isWorkflowValid(workflow: Workflow) {
-  if (!workflow.id.trim() || !workflow.name.trim() || workflow.steps.length === 0) {
+  if (!workflow.id.trim() || !Number.isInteger(workflow.version) || workflow.version < 0 || !workflow.name.trim() || workflow.steps.length === 0) {
     return false;
   }
 

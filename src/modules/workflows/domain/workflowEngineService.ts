@@ -189,6 +189,7 @@ export function createWorkflowEngine(
 
       const workflow: Workflow = {
         id: workflowId,
+        version: 0,
         name: input.name,
         status: WORKFLOW_STATUSES.draft,
         steps,

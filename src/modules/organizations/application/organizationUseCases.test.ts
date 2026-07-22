@@ -30,6 +30,7 @@ function createDependencies(actorRole: OrganizationRole = "owner") {
       }),
       remove: vi.fn(async (_organizationId, userId) => { memberships.delete(userId); }),
     },
+    membershipTransactions: { run: async (work) => work(dependencies.memberships) },
     users: {
       create: vi.fn(),
       findByNormalizedEmail: vi.fn(async (email) => email === "member@example.com" ? {
