@@ -3,7 +3,8 @@ import {
   workflowErrorResponse,
   workflowJsonResponse,
 } from "@/modules/workflows/presentation/api/workflowApiResponses";
-import { workflowPersistenceDependencies } from "@/modules/workflows/workflowPersistenceDependencies";
+import { getWorkflowRequestContext } from "@/app/api/workflows/_workflowRequest";
+import { parseReasonPayload } from "@/modules/workflows/presentation/api/workflowRequestPayloads";
 
 type WorkflowRouteContext = {
   params: Promise<{
@@ -14,12 +15,13 @@ type WorkflowRouteContext = {
 export async function POST(request: Request, context: WorkflowRouteContext) {
   try {
     const { id } = await context.params;
-    const body = await request.json();
+    const { dependencies } = await getWorkflowRequestContext(request);
+    const body = await parseReasonPayload(request);
     const workflow = await cancelPersistedWorkflow(
-      workflowPersistenceDependencies,
+      dependencies,
       {
         workflowId: id,
-        reason: String(body.reason ?? ""),
+        reason: body.reason,
       },
     );
 

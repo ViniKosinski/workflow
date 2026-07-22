@@ -3,16 +3,13 @@ import {
   workflowErrorResponse,
   workflowJsonResponse,
 } from "@/modules/workflows/presentation/api/workflowApiResponses";
-import { workflowPersistenceDependencies } from "@/modules/workflows/workflowPersistenceDependencies";
+import { getWorkflowRequestContext } from "@/app/api/workflows/_workflowRequest";
+import { parseReorderPayload } from "@/modules/workflows/presentation/api/workflowRequestPayloads";
 
 type ReorderWorkflowStepsRouteContext = {
   params: Promise<{
     id: string;
   }>;
-};
-
-type ReorderWorkflowStepsPayload = {
-  orderedStepIds?: string[];
 };
 
 export async function PATCH(
@@ -21,10 +18,11 @@ export async function PATCH(
 ) {
   try {
     const { id } = await context.params;
-    const payload = (await request.json()) as ReorderWorkflowStepsPayload;
-    const workflow = await reorderWorkflowSteps(workflowPersistenceDependencies, {
+    const { dependencies } = await getWorkflowRequestContext(request);
+    const payload = await parseReorderPayload(request);
+    const workflow = await reorderWorkflowSteps(dependencies, {
       workflowId: id,
-      orderedStepIds: payload.orderedStepIds ?? [],
+      orderedStepIds: payload.orderedStepIds,
     });
 
     return workflowJsonResponse({ workflow });

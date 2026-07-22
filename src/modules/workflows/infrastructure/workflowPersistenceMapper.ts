@@ -28,9 +28,37 @@ export const workflowRunInclude = {
   workflowDefinition: true,
 } satisfies Prisma.WorkflowRunInclude;
 
+export const workflowRunListInclude = {
+  steps: {
+    orderBy: { order: "asc" },
+  },
+  workflowDefinition: true,
+} satisfies Prisma.WorkflowRunInclude;
+
 export type WorkflowRunRecord = Prisma.WorkflowRunGetPayload<{
   include: typeof workflowRunInclude;
 }>;
+
+export type WorkflowRunListRecord = Prisma.WorkflowRunGetPayload<{
+  include: typeof workflowRunListInclude;
+}>;
+
+export function mapWorkflowRunListRecordToDomain(workflowRun: WorkflowRunListRecord): Workflow {
+  return {
+    id: workflowRun.id,
+    name: workflowRun.workflowDefinition.name,
+    status: mapWorkflowStatusToDomain(workflowRun.status),
+    steps: workflowRun.steps.map(mapWorkflowRunStepToDomain),
+    currentStepId: workflowRun.currentStepId ?? undefined,
+    executionHistory: [],
+    createdAt: workflowRun.createdAt.toISOString(),
+    updatedAt: workflowRun.updatedAt.toISOString(),
+    startedAt: workflowRun.startedAt?.toISOString(),
+    finishedAt: workflowRun.finishedAt?.toISOString(),
+    failureReason: workflowRun.failureReason ?? undefined,
+    cancellationReason: workflowRun.cancellationReason ?? undefined,
+  };
+}
 
 export function mapWorkflowRunToDomain(workflowRun: WorkflowRunRecord): Workflow {
   return {
@@ -50,7 +78,7 @@ export function mapWorkflowRunToDomain(workflowRun: WorkflowRunRecord): Workflow
 }
 
 export function mapWorkflowRunStepToDomain(
-  step: WorkflowRunRecord["steps"][number],
+  step: WorkflowRunRecord["steps"][number] | WorkflowRunListRecord["steps"][number],
 ): WorkflowStep {
   const executionResult = mapJsonToWorkflowMetadataObject(step.executionResult);
 

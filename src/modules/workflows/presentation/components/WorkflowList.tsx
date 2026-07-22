@@ -3,7 +3,7 @@ import type { Workflow } from "@/modules/workflows/domain/workflowEngine";
 import { WorkflowStatusBadge } from "@/modules/workflows/presentation/components/WorkflowStatusBadge";
 
 type WorkflowListProps = {
-  workflows: Workflow[];
+  workflows: ReadonlyArray<Workflow>;
 };
 
 export function WorkflowList({ workflows }: WorkflowListProps) {

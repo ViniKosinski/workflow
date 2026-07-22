@@ -4,12 +4,21 @@ import {
   workflowErrorResponse,
   workflowJsonResponse,
 } from "@/modules/workflows/presentation/api/workflowApiResponses";
-import { workflowPersistenceDependencies } from "@/modules/workflows/workflowPersistenceDependencies";
+import { getWorkflowRequestContext } from "@/app/api/workflows/_workflowRequest";
+import { parseCreateWorkflowPayload } from "@/modules/workflows/presentation/api/workflowRequestPayloads";
+import { HttpRequestError } from "@/shared/presentation/api/httpRequest";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const url = new URL(request.url);
+    const limit = Number(url.searchParams.get("limit") ?? 50);
+    const offset = Number(url.searchParams.get("offset") ?? 0);
+    if (!Number.isInteger(limit) || limit < 1 || limit > 100 || !Number.isInteger(offset) || offset < 0) {
+      throw new HttpRequestError(400, "Paginação inválida.");
+    }
     const workflows = await listPersistedWorkflows(
-      workflowPersistenceDependencies,
+      (await getWorkflowRequestContext()).dependencies,
+      { limit, offset },
     );
 
     return workflowJsonResponse({ workflows });
@@ -20,22 +29,8 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const body = (await request.json()) as {
-      name?: unknown;
-      steps?: Array<{
-        name?: unknown;
-        order?: unknown;
-      }>;
-    };
-    const workflow = await createWorkflow(workflowPersistenceDependencies, {
-      name: String(body.name ?? ""),
-      steps: Array.isArray(body.steps)
-        ? body.steps.map((step, index) => ({
-            name: String(step.name ?? ""),
-            order: Number(step.order ?? index + 1),
-          }))
-        : [],
-    });
+    const { dependencies } = await getWorkflowRequestContext(request);
+    const workflow = await createWorkflow(dependencies, await parseCreateWorkflowPayload(request));
 
     return workflowJsonResponse({ workflow }, { status: 201 });
   } catch (error) {

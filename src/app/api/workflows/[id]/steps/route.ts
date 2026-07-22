@@ -3,16 +3,13 @@ import {
   workflowErrorResponse,
   workflowJsonResponse,
 } from "@/modules/workflows/presentation/api/workflowApiResponses";
-import { workflowPersistenceDependencies } from "@/modules/workflows/workflowPersistenceDependencies";
+import { getWorkflowRequestContext } from "@/app/api/workflows/_workflowRequest";
+import { parseStepNamePayload } from "@/modules/workflows/presentation/api/workflowRequestPayloads";
 
 type WorkflowStepsRouteContext = {
   params: Promise<{
     id: string;
   }>;
-};
-
-type AddWorkflowStepPayload = {
-  name?: string;
 };
 
 export async function POST(
@@ -21,10 +18,11 @@ export async function POST(
 ) {
   try {
     const { id } = await context.params;
-    const payload = (await request.json()) as AddWorkflowStepPayload;
-    const workflow = await addWorkflowStep(workflowPersistenceDependencies, {
+    const { dependencies } = await getWorkflowRequestContext(request);
+    const payload = await parseStepNamePayload(request);
+    const workflow = await addWorkflowStep(dependencies, {
       workflowId: id,
-      name: payload.name ?? "",
+      name: payload.name,
     });
 
     return workflowJsonResponse({ workflow });

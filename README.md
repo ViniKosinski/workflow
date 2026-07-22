@@ -105,3 +105,13 @@ npm run type-check
 npm run lint
 npm run build
 ```
+
+## Autenticação e dados legados
+
+As migrations da Sprint 4 associam workflows anteriores à autenticação ao usuário desabilitado `legacy-workflow-owner`. Depois de criar o usuário real que receberá esses dados, execute:
+
+```bash
+npm run workflows:reassign-legacy -- usuario@example.com
+```
+
+Para executar as suítes de integração de autenticação e ownership, configure `TEST_DATABASE_URL` com um PostgreSQL exclusivo de testes, aplique as migrations nesse banco e rode `npm test`. Nunca use um banco de produção para esses testes.

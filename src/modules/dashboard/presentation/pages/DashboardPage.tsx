@@ -1,18 +1,13 @@
 import Link from "next/link";
-import { getWorkflowSummaries } from "@/modules/workflows/application/getWorkflowSummaries";
-import { WorkflowCard } from "@/modules/workflows/presentation/components/WorkflowCard";
-import { workflowDependencies } from "@/modules/workflows/workflowDependencies";
+import type { Workflow } from "@/modules/workflows/domain/workflowEngine";
+import { WorkflowList } from "@/modules/workflows/presentation/components/WorkflowList";
 import { AppHeader } from "@/shared/components/layout/AppHeader";
 import { Button } from "@/shared/components/ui/Button";
 
-export function DashboardPage() {
-  const workflowSummaries = getWorkflowSummaries(
-    workflowDependencies.workflowRepository,
-  );
-
+export function DashboardPage({ userName, logoutControl, workflows, loadError }: Readonly<{ userName: string; logoutControl: React.ReactNode; workflows: ReadonlyArray<Workflow>; loadError: string | null }>) {
   return (
     <main className="min-h-screen bg-slate-50">
-      <AppHeader />
+      <AppHeader userName={userName} logoutControl={logoutControl} />
 
       <section className="mx-auto flex w-full max-w-6xl flex-col gap-10 px-6 py-10">
         <div className="flex flex-col gap-5 border-b border-slate-200 pb-8 md:flex-row md:items-end md:justify-between">
@@ -34,11 +29,7 @@ export function DashboardPage() {
           </Link>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-3">
-          {workflowSummaries.map((workflow) => (
-            <WorkflowCard key={workflow.id} workflow={workflow} />
-          ))}
-        </div>
+        {loadError ? <div className="rounded-md border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">{loadError}</div> : <WorkflowList workflows={workflows} />}
       </section>
     </main>
   );

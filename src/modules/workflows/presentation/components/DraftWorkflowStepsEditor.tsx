@@ -65,6 +65,9 @@ export function DraftWorkflowStepsEditor({
       router.refresh();
 
       return payload.workflow;
+    } catch {
+      setError("Não foi possível conectar ao servidor.");
+      return null;
     } finally {
       setIsSubmitting(false);
     }

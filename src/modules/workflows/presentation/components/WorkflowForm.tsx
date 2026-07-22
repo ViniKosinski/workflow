@@ -44,7 +44,7 @@ export function WorkflowForm() {
           })),
         }),
       });
-      const payload = (await response.json()) as
+      const payload = (await response.json().catch(() => ({}))) as
         | WorkflowApiResponse
         | WorkflowApiErrorResponse;
 
@@ -59,6 +59,8 @@ export function WorkflowForm() {
 
       router.push(`/workflows/${payload.workflow.id}`);
       router.refresh();
+    } catch {
+      setError("Não foi possível conectar ao servidor.");
     } finally {
       setIsSubmitting(false);
     }
