@@ -38,6 +38,8 @@ http://localhost:3000
 - `npm run start`: executa a build de produção.
 - `npm run lint`: executa o ESLint.
 - `npm run type-check`: valida os tipos TypeScript.
+- `npm test`: executa todos os testes; com `TEST_DATABASE_URL`, aplica as migrations e inclui as integrações.
+- `npm run test:integration`: aplica as migrations e executa apenas os testes de integração.
 
 ## Estrutura
 
@@ -114,4 +116,4 @@ As migrations da Sprint 4 associam workflows anteriores à autenticação ao usu
 npm run workflows:reassign-legacy -- usuario@example.com
 ```
 
-Para executar as suítes de integração de autenticação e ownership, configure `TEST_DATABASE_URL` com um PostgreSQL exclusivo de testes, aplique as migrations nesse banco e rode `npm test`. Nunca use um banco de produção para esses testes.
+Para executar as suítes de integração de autenticação e ownership, configure `TEST_DATABASE_URL` com um PostgreSQL exclusivo de testes e rode `npm run test:integration`. O preparo aplica automaticamente todas as migrations antes dos testes e recusa bancos cujo nome não contenha `test`. Nunca use um banco de produção para esses testes.
