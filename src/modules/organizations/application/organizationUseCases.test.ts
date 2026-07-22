@@ -3,7 +3,7 @@ import { OrganizationAuthorizationService } from "@/modules/authorization/domain
 import { changeOrganizationMemberRole } from "@/modules/organizations/application/changeOrganizationMemberRole";
 import { checkOrganizationAuthorization } from "@/modules/organizations/application/checkOrganizationAuthorization";
 import { createOrganization } from "@/modules/organizations/application/createOrganization";
-import { inviteOrganizationMember } from "@/modules/organizations/application/inviteOrganizationMember";
+import { addOrganizationMember } from "@/modules/organizations/application/addOrganizationMember";
 import { listOrganizationMembers } from "@/modules/organizations/application/listOrganizationMembers";
 import { removeOrganizationMember } from "@/modules/organizations/application/removeOrganizationMember";
 import type { OrganizationApplicationDependencies } from "@/modules/organizations/application/organizationApplicationTypes";
@@ -54,9 +54,9 @@ describe("organization use cases", () => {
     expect(dependencies.organizations.createWithOwner).toHaveBeenCalledWith(expect.objectContaining({ ownerMembership: expect.objectContaining({ role: "owner", userId: "actor" }) }));
   });
 
-  it("OWNER convida, altera e remove membro", async () => {
+  it("OWNER adiciona, altera e remove membro", async () => {
     const { dependencies } = createDependencies();
-    await inviteOrganizationMember(dependencies, "actor", "org", { email: "Member@Example.com", role: "admin" });
+    await addOrganizationMember(dependencies, "actor", "org", { email: "Member@Example.com", role: "admin" });
     await expect(changeOrganizationMemberRole(dependencies, "actor", "org", "member", { role: "editor" })).resolves.toMatchObject({ role: "editor" });
     await removeOrganizationMember(dependencies, "actor", "org", "member");
     await expect(listOrganizationMembers(dependencies, "actor", "org")).resolves.toHaveLength(1);
@@ -71,7 +71,7 @@ describe("organization use cases", () => {
 
   it.each(["editor", "viewer"] as const)("%s não gerencia membros", async (role) => {
     const { dependencies } = createDependencies(role);
-    await expect(inviteOrganizationMember(dependencies, "actor", "org", { email: "member@example.com", role: "viewer" })).rejects.toThrow("permissão");
+    await expect(addOrganizationMember(dependencies, "actor", "org", { email: "member@example.com", role: "viewer" })).rejects.toThrow("permissão");
   });
 
   it("retorna papel e capabilities pela autoridade central", async () => {

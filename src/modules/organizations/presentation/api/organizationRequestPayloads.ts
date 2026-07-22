@@ -9,7 +9,7 @@ export async function parseCreateOrganizationPayload(request: Request) {
   return { name: requireString(body, "name", 160) };
 }
 
-export async function parseInviteMemberPayload(request: Request) {
+export async function parseAddMemberPayload(request: Request) {
   const body = await parseJsonObject(request);
   return {
     email: requireString(body, "email", 320),

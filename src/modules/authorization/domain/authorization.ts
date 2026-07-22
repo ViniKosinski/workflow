@@ -4,7 +4,7 @@ export const ORGANIZATION_PERMISSIONS = {
   organizationRead: "organization.read",
   organizationUpdate: "organization.update",
   membershipRead: "membership.read",
-  membershipInvite: "membership.invite",
+  membershipAdd: "membership.add",
   membershipChangeRole: "membership.changeRole",
   membershipRemove: "membership.remove",
   workflowRead: "workflow.read",
@@ -52,10 +52,10 @@ export class OrganizationAuthorizationService {
     if (!this.allows(role, permission)) throw new AuthorizationDeniedError();
   }
 
-  requireInvitation(actorRole: OrganizationRole, invitedRole: OrganizationRole) {
-    this.require(actorRole, ORGANIZATION_PERMISSIONS.membershipInvite);
-    if (invitedRole === ORGANIZATION_ROLES.owner) throw new AuthorizationDeniedError();
-    if (actorRole === ORGANIZATION_ROLES.admin && invitedRole === ORGANIZATION_ROLES.admin) {
+  requireAddition(actorRole: OrganizationRole, addedRole: OrganizationRole) {
+    this.require(actorRole, ORGANIZATION_PERMISSIONS.membershipAdd);
+    if (addedRole === ORGANIZATION_ROLES.owner) throw new AuthorizationDeniedError();
+    if (actorRole === ORGANIZATION_ROLES.admin && addedRole === ORGANIZATION_ROLES.admin) {
       throw new AuthorizationDeniedError();
     }
   }
@@ -81,5 +81,16 @@ export class OrganizationAuthorizationService {
 
   permissionsFor(role: OrganizationRole) {
     return ROLE_PERMISSION_MATRIX[role];
+  }
+
+  memberActionsFor(actorRole: OrganizationRole, targetRole: OrganizationRole) {
+    const assignableRoles = ([ORGANIZATION_ROLES.admin, ORGANIZATION_ROLES.editor, ORGANIZATION_ROLES.viewer] as const)
+      .filter((role) => role !== targetRole)
+      .filter((role) => {
+        try { this.requireRoleChange(actorRole, targetRole, role); return true; } catch { return false; }
+      });
+    let canRemove = true;
+    try { this.requireRemoval(actorRole, targetRole); } catch { canRemove = false; }
+    return { assignableRoles, canRemove } as const;
   }
 }

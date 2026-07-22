@@ -4,7 +4,7 @@ import { UnauthenticatedError } from "@/modules/auth/application/authErrors";
 import { MembershipDomainError } from "@/modules/organizations/domain/membership";
 import { OrganizationDomainError } from "@/modules/organizations/domain/organization";
 import {
-  InvitedUserNotFoundError,
+  MemberUserNotFoundError,
   MembershipAlreadyExistsError,
   MembershipNotFoundError,
   OrganizationNotFoundError,
@@ -20,7 +20,7 @@ export function organizationErrorResponse(error: unknown) {
   if (error instanceof HttpRequestError) return NextResponse.json({ message: error.message }, { status: error.status });
   if (error instanceof UnauthenticatedError) return NextResponse.json({ message: error.message }, { status: 401 });
   if (error instanceof AuthorizationDeniedError) return NextResponse.json({ message: error.message }, { status: 403 });
-  if (error instanceof OrganizationNotFoundError || error instanceof MembershipNotFoundError || error instanceof InvitedUserNotFoundError) {
+  if (error instanceof OrganizationNotFoundError || error instanceof MembershipNotFoundError || error instanceof MemberUserNotFoundError) {
     return NextResponse.json({ message: error.message }, { status: 404 });
   }
   if (error instanceof MembershipAlreadyExistsError) return NextResponse.json({ message: error.message }, { status: 409 });

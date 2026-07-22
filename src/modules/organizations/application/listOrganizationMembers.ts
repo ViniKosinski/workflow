@@ -3,6 +3,10 @@ import { authorizeOrganizationAction } from "@/modules/organizations/application
 import type { OrganizationApplicationDependencies } from "@/modules/organizations/application/organizationApplicationTypes";
 
 export async function listOrganizationMembers(dependencies: OrganizationApplicationDependencies, actorUserId: string, organizationId: string) {
-  await authorizeOrganizationAction(dependencies, actorUserId, organizationId, ORGANIZATION_PERMISSIONS.membershipRead);
-  return dependencies.memberships.list(organizationId);
+  const actor = await authorizeOrganizationAction(dependencies, actorUserId, organizationId, ORGANIZATION_PERMISSIONS.membershipRead);
+  const members = await dependencies.memberships.list(organizationId);
+  return members.map((membership) => ({
+    ...membership,
+    actions: dependencies.authorization.memberActionsFor(actor.role, membership.role),
+  }));
 }

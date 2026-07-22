@@ -4,11 +4,13 @@ import { PrismaSessionRepository } from "@/modules/auth/infrastructure/prismaSes
 import { PrismaUserRepository } from "@/modules/auth/infrastructure/prismaUserRepository";
 import { sessionTokenService } from "@/modules/auth/infrastructure/sessionTokenService";
 import { PrismaRateLimiter } from "@/modules/auth/infrastructure/prismaRateLimiter";
+import { PrismaAccountProvisioningRepository } from "@/modules/accountProvisioning/infrastructure/prismaAccountProvisioningRepository";
 
 const DUMMY_PASSWORD_HASH = "$argon2id$v=19$m=19456,t=2,p=1$ON2fd8GSdGQG8aZ0+I/Glw$pQ+zsRiVJIAFSy+mhxTS76AdM8MOVFxzK+HeuCj4qj4";
 
 export const authDependencies: AuthApplicationDependencies = {
   users: new PrismaUserRepository(),
+  accountProvisioning: new PrismaAccountProvisioningRepository(),
   sessions: new PrismaSessionRepository(),
   passwordHasher: argonPasswordHasher,
   sessionTokens: sessionTokenService,

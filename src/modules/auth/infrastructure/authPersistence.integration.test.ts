@@ -4,6 +4,7 @@ import { PrismaClient } from "@prisma/client";
 import type { UserRepository } from "@/modules/auth/domain/userRepository";
 import type { SessionRepository } from "@/modules/auth/domain/sessionRepository";
 import type { RateLimiter } from "@/modules/auth/domain/authServices";
+import type { AccountProvisioningRepository } from "@/modules/accountProvisioning/domain/accountProvisioningRepository";
 
 const databaseUrl = process.env.TEST_DATABASE_URL;
 const integration = describe.skipIf(!databaseUrl);
@@ -15,16 +16,19 @@ integration("authentication persistence with PostgreSQL", () => {
   let users: UserRepository;
   let sessions: SessionRepository;
   let rateLimiter: RateLimiter;
+  let accountProvisioning: AccountProvisioningRepository;
 
   beforeAll(async () => {
-    const [{ PrismaUserRepository }, { PrismaSessionRepository }, { PrismaRateLimiter }] = await Promise.all([
+    const [{ PrismaUserRepository }, { PrismaSessionRepository }, { PrismaRateLimiter }, { PrismaAccountProvisioningRepository }] = await Promise.all([
       import("@/modules/auth/infrastructure/prismaUserRepository"),
       import("@/modules/auth/infrastructure/prismaSessionRepository"),
       import("@/modules/auth/infrastructure/prismaRateLimiter"),
+      import("@/modules/accountProvisioning/infrastructure/prismaAccountProvisioningRepository"),
     ]);
     users = new PrismaUserRepository(prisma);
     sessions = new PrismaSessionRepository(prisma);
     rateLimiter = new PrismaRateLimiter(prisma);
+    accountProvisioning = new PrismaAccountProvisioningRepository(prisma);
   });
 
   afterAll(async () => {
@@ -36,7 +40,7 @@ integration("authentication persistence with PostgreSQL", () => {
 
   it("persiste usuário e credencial atomicamente", async () => {
     const now = new Date().toISOString();
-    await users.create({ id: userId, email, normalizedEmail: email, name: "Teste", status: "active", passwordHash: "hash", now });
+    await accountProvisioning.provision({ id: userId, email, normalizedEmail: email, name: "Teste", status: "active", passwordHash: "hash", now });
     await expect(users.findByNormalizedEmail(email)).resolves.toMatchObject({ user: { id: userId }, passwordHash: "hash" });
     await expect(prisma.organizationMembership.findUnique({ where: { organizationId_userId: { organizationId: userId, userId } } })).resolves.toMatchObject({ role: "OWNER" });
   });

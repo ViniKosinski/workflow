@@ -12,9 +12,11 @@ export function createOrganizationAuthorizationGuard(
   actorUserId: string,
   organizationId: string,
 ): OrganizationAuthorizationGuard {
+  let membershipPromise: ReturnType<MembershipRepository["find"]> | undefined;
   return {
     async require(permission) {
-      const membership = await memberships.find(organizationId, actorUserId);
+      membershipPromise ??= memberships.find(organizationId, actorUserId);
+      const membership = await membershipPromise;
       if (!membership) throw new OrganizationNotFoundError();
       service.require(membership.role, permission);
     },

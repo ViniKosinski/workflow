@@ -14,6 +14,7 @@ export function AppHeader({ userName, logoutControl }: Readonly<{ userName: stri
         <nav className="flex flex-wrap items-center justify-end gap-x-4 gap-y-1 text-sm font-medium text-slate-600">
           <Link href="/">Painel</Link>
           <Link href="/workflows">Fluxos</Link>
+          <Link href="/organizations">Organizações</Link>
           <Link href="/workflows/new">Novo fluxo</Link>
           <Link href="/profile">{userName}</Link>
           {logoutControl}

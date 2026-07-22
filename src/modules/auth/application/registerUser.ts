@@ -14,7 +14,7 @@ export async function registerUser(
   const passwordHash = await dependencies.passwordHasher.hash(password);
 
   try {
-    await dependencies.users.create({
+    await dependencies.accountProvisioning.provision({
       id: dependencies.ids.createUserId(),
       email: normalizedEmail,
       normalizedEmail,

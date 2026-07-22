@@ -1,9 +1,11 @@
 import type { Clock, IdGenerator, PasswordHasher, RateLimiter, SessionTokenService } from "@/modules/auth/domain/authServices";
 import type { SessionRepository } from "@/modules/auth/domain/sessionRepository";
 import type { UserRepository } from "@/modules/auth/domain/userRepository";
+import type { AccountProvisioningRepository } from "@/modules/accountProvisioning/domain/accountProvisioningRepository";
 
 export type AuthApplicationDependencies = Readonly<{
   users: UserRepository;
+  accountProvisioning: AccountProvisioningRepository;
   sessions: SessionRepository;
   passwordHasher: PasswordHasher;
   sessionTokens: SessionTokenService;

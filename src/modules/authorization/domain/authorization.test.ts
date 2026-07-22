@@ -25,15 +25,22 @@ describe("OrganizationAuthorizationService", () => {
   });
 
   it("impede ADMIN de criar ou gerenciar ADMIN e protege OWNER", () => {
-    expect(() => service.requireInvitation("admin", "admin")).toThrow(AuthorizationDeniedError);
+    expect(() => service.requireAddition("admin", "admin")).toThrow(AuthorizationDeniedError);
     expect(() => service.requireRoleChange("admin", "admin", "viewer")).toThrow(AuthorizationDeniedError);
     expect(() => service.requireRoleChange("owner", "owner", "admin")).toThrow(AuthorizationDeniedError);
     expect(() => service.requireRemoval("owner", "owner")).toThrow(AuthorizationDeniedError);
   });
 
   it("permite OWNER gerenciar papéis não proprietários", () => {
-    expect(() => service.requireInvitation("owner", "admin")).not.toThrow();
+    expect(() => service.requireAddition("owner", "admin")).not.toThrow();
     expect(() => service.requireRoleChange("owner", "admin", "editor")).not.toThrow();
     expect(() => service.requireRemoval("owner", "admin")).not.toThrow();
+  });
+
+  it("calcula ações por membro sem transferir regras para a interface", () => {
+    expect(service.memberActionsFor("admin", "admin")).toEqual({ assignableRoles: [], canRemove: false });
+    expect(service.memberActionsFor("admin", "editor")).toEqual({ assignableRoles: ["viewer"], canRemove: true });
+    expect(service.memberActionsFor("owner", "viewer")).toEqual({ assignableRoles: ["admin", "editor"], canRemove: true });
+    expect(service.memberActionsFor("owner", "owner")).toEqual({ assignableRoles: [], canRemove: false });
   });
 });

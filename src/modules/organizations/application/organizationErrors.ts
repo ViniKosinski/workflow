@@ -19,9 +19,9 @@ export class MembershipAlreadyExistsError extends Error {
   }
 }
 
-export class InvitedUserNotFoundError extends Error {
+export class MemberUserNotFoundError extends Error {
   constructor() {
     super("Não foi possível adicionar o usuário informado.");
-    this.name = "InvitedUserNotFoundError";
+    this.name = "MemberUserNotFoundError";
   }
 }

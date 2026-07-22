@@ -1,8 +1,8 @@
 import { getOrganizationRequestContext } from "@/app/api/organizations/_organizationRequest";
-import { inviteOrganizationMember } from "@/modules/organizations/application/inviteOrganizationMember";
+import { addOrganizationMember } from "@/modules/organizations/application/addOrganizationMember";
 import { listOrganizationMembers } from "@/modules/organizations/application/listOrganizationMembers";
 import { organizationErrorResponse, organizationJsonResponse } from "@/modules/organizations/presentation/api/organizationApiResponses";
-import { parseInviteMemberPayload } from "@/modules/organizations/presentation/api/organizationRequestPayloads";
+import { parseAddMemberPayload } from "@/modules/organizations/presentation/api/organizationRequestPayloads";
 
 type Context = { params: Promise<{ organizationId: string }> };
 
@@ -18,7 +18,7 @@ export async function POST(request: Request, { params }: Context) {
   try {
     const { organizationId } = await params;
     const { user, dependencies } = await getOrganizationRequestContext(request);
-    const membership = await inviteOrganizationMember(dependencies, user.userId, organizationId, await parseInviteMemberPayload(request));
+    const membership = await addOrganizationMember(dependencies, user.userId, organizationId, await parseAddMemberPayload(request));
     return organizationJsonResponse({ membership }, { status: 201 });
   } catch (error) { return organizationErrorResponse(error); }
 }

@@ -19,6 +19,13 @@ function createTestDependencies() {
   const verify = vi.fn(async (passwordHash: string, password: string) => passwordHash === `hashed:${password}`);
 
   const dependencies: AuthApplicationDependencies = {
+    accountProvisioning: {
+      async provision(record: CreateUserRecord) {
+        if (users.has(record.normalizedEmail)) throw new Error("unique");
+        const user: User = { id: record.id, email: record.email, name: record.name, status: record.status, createdAt: record.now, updatedAt: record.now };
+        users.set(record.normalizedEmail, { user, passwordHash: record.passwordHash });
+      },
+    },
     users: {
       async create(record: CreateUserRecord) {
         if (users.has(record.normalizedEmail)) throw new Error("unique");
