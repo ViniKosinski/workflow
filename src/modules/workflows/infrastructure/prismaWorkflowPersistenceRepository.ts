@@ -24,8 +24,9 @@ export class PrismaWorkflowPersistenceRepository
   implements WorkflowPersistenceRepository
 {
   constructor(
-    private readonly ownerUserId: string,
+    private readonly organizationId: string,
     private readonly prisma: PrismaClient = prismaClient,
+    private readonly createdByUserId: string = organizationId,
   ) {}
 
   async save(workflow: Workflow) {
@@ -51,7 +52,7 @@ export class PrismaWorkflowPersistenceRepository
     const workflowRun = await this.prisma.workflowRun.findFirst({
       where: {
         id: workflowId,
-        workflowDefinition: { ownerUserId: this.ownerUserId },
+        workflowDefinition: { organizationId: this.organizationId },
       },
       include: workflowRunInclude,
     });
@@ -64,7 +65,7 @@ export class PrismaWorkflowPersistenceRepository
     const offset = Math.max(params.offset ?? 0, 0);
     const workflowRuns = await this.prisma.workflowRun.findMany({
       where: {
-        workflowDefinition: { ownerUserId: this.ownerUserId },
+        workflowDefinition: { organizationId: this.organizationId },
         status: params.status
           ? mapWorkflowStatusToPrisma(params.status)
           : undefined,
@@ -85,7 +86,7 @@ export class PrismaWorkflowPersistenceRepository
       const ownedWorkflow = await transaction.workflowRun.findFirst({
         where: {
           id: workflow.id,
-          workflowDefinition: { ownerUserId: this.ownerUserId },
+          workflowDefinition: { organizationId: this.organizationId },
         },
         select: { id: true },
       });
@@ -119,7 +120,7 @@ export class PrismaWorkflowPersistenceRepository
     const workflowRun = await this.prisma.workflowRun.findFirst({
       where: {
         id: workflowId,
-        workflowDefinition: { ownerUserId: this.ownerUserId },
+        workflowDefinition: { organizationId: this.organizationId },
       },
       select: {
         id: true,
@@ -138,7 +139,8 @@ export class PrismaWorkflowPersistenceRepository
       await transaction.workflowDefinition.create({
         data: {
           id: workflow.id,
-          ownerUserId: this.ownerUserId,
+          organizationId: this.organizationId,
+          createdByUserId: this.createdByUserId,
           name: workflow.name,
           createdAt: mapIsoDateToDate(workflow.createdAt),
           updatedAt: mapIsoDateToDate(workflow.updatedAt),
@@ -146,7 +148,7 @@ export class PrismaWorkflowPersistenceRepository
       });
     } else {
       const definitionUpdate = await transaction.workflowDefinition.updateMany({
-        where: { id: workflow.id, ownerUserId: this.ownerUserId },
+        where: { id: workflow.id, organizationId: this.organizationId },
         data: {
           name: workflow.name,
           updatedAt: mapIsoDateToDate(workflow.updatedAt),
@@ -281,6 +283,6 @@ export class PrismaWorkflowPersistenceRepository
   }
 }
 
-export function createPrismaWorkflowPersistenceRepository(ownerUserId: string) {
-  return new PrismaWorkflowPersistenceRepository(ownerUserId);
+export function createPrismaWorkflowPersistenceRepository(organizationId: string, createdByUserId = organizationId) {
+  return new PrismaWorkflowPersistenceRepository(organizationId, undefined, createdByUserId);
 }

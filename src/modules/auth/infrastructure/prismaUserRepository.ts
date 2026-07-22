@@ -45,6 +45,23 @@ export class PrismaUserRepository implements UserRepository {
           updatedAt: new Date(record.now),
         },
       });
+      await transaction.organization.create({
+        data: {
+          id: record.id,
+          name: `${record.name} - Espaço pessoal`.slice(0, 160),
+          createdAt: new Date(record.now),
+          updatedAt: new Date(record.now),
+        },
+      });
+      await transaction.organizationMembership.create({
+        data: {
+          organizationId: record.id,
+          userId: record.id,
+          role: "OWNER",
+          createdAt: new Date(record.now),
+          updatedAt: new Date(record.now),
+        },
+      });
       return created;
     });
     return mapUser(user);

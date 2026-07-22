@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { UnauthenticatedError } from "@/modules/auth/application/authErrors";
+import { AuthorizationDeniedError } from "@/modules/authorization/domain/authorization";
+import { OrganizationNotFoundError } from "@/modules/organizations/application/organizationErrors";
 import {
   WorkflowBusinessError,
   WorkflowNotFoundError,
@@ -18,6 +20,12 @@ export function workflowErrorResponse(error: unknown) {
   }
   if (error instanceof UnauthenticatedError) {
     return NextResponse.json({ message: error.message }, { status: 401 });
+  }
+  if (error instanceof AuthorizationDeniedError) {
+    return NextResponse.json({ message: error.message }, { status: 403 });
+  }
+  if (error instanceof OrganizationNotFoundError) {
+    return NextResponse.json({ message: error.message }, { status: 404 });
   }
   if (error instanceof WorkflowValidationError) {
     return NextResponse.json({ message: error.message }, { status: 400 });

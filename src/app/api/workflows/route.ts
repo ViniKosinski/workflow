@@ -17,7 +17,7 @@ export async function GET(request: Request) {
       throw new HttpRequestError(400, "Paginação inválida.");
     }
     const workflows = await listPersistedWorkflows(
-      (await getWorkflowRequestContext()).dependencies,
+      (await getWorkflowRequestContext(request)).dependencies,
       { limit, offset },
     );
 

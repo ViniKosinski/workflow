@@ -11,11 +11,11 @@ type WorkflowRouteContext = {
   }>;
 };
 
-export async function GET(_request: Request, context: WorkflowRouteContext) {
+export async function GET(request: Request, context: WorkflowRouteContext) {
   try {
     const { id } = await context.params;
     const workflow = await getPersistedWorkflowById(
-      (await getWorkflowRequestContext()).dependencies,
+      (await getWorkflowRequestContext(request)).dependencies,
       id,
     );
 

@@ -21,10 +21,10 @@ describe("PrismaWorkflowPersistenceRepository ownership", () => {
     await repository.exists("workflow-b");
 
     expect(workflowRun.findMany).toHaveBeenCalledWith(expect.objectContaining({
-      where: expect.objectContaining({ workflowDefinition: { ownerUserId: "user-a" } }),
+      where: expect.objectContaining({ workflowDefinition: { organizationId: "user-a" } }),
     }));
     for (const call of workflowRun.findFirst.mock.calls) {
-      expect(call[0].where).toMatchObject({ workflowDefinition: { ownerUserId: "user-a" } });
+      expect(call[0].where).toMatchObject({ workflowDefinition: { organizationId: "user-a" } });
     }
   });
 
@@ -50,7 +50,7 @@ describe("PrismaWorkflowPersistenceRepository ownership", () => {
     const prisma = { $transaction: vi.fn((callback) => callback(transaction)) };
     const repository = new PrismaWorkflowPersistenceRepository("user-b", prisma as never);
     await expect(repository.update({ id: "workflow-a" } as never)).rejects.toThrow("not found");
-    expect(transaction.workflowRun.findFirst).toHaveBeenCalledWith(expect.objectContaining({ where: { id: "workflow-a", workflowDefinition: { ownerUserId: "user-b" } } }));
+    expect(transaction.workflowRun.findFirst).toHaveBeenCalledWith(expect.objectContaining({ where: { id: "workflow-a", workflowDefinition: { organizationId: "user-b" } } }));
     expect(transaction.workflowRun.update).not.toHaveBeenCalled();
     expect(transaction.workflowExecutionEvent.deleteMany).not.toHaveBeenCalled();
   });

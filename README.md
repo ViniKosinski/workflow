@@ -117,3 +117,9 @@ npm run workflows:reassign-legacy -- usuario@example.com
 ```
 
 Para executar as suítes de integração de autenticação e ownership, configure `TEST_DATABASE_URL` com um PostgreSQL exclusivo de testes e rode `npm run test:integration`. O preparo aplica automaticamente todas as migrations antes dos testes e recusa bancos cujo nome não contenha `test`. Nunca use um banco de produção para esses testes.
+
+## Organizações e autorização
+
+Cada usuário possui uma organização pessoal e pode participar de outras organizações como `OWNER`, `ADMIN`, `EDITOR` ou `VIEWER`. A matriz de permissões fica no domínio e é aplicada pelos casos de uso antes do acesso à persistência.
+
+As APIs de organizações estão em `/api/organizations`. Para operar workflows de outra organização pela API, envie o identificador no header `X-Organization-Id`; quando ausente, a organização pessoal do usuário autenticado é utilizada para preservar compatibilidade.

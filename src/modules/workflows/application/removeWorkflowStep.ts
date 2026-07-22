@@ -4,11 +4,13 @@ import type {
   WorkflowStepActionInput,
 } from "@/modules/workflows/application/workflowApplicationTypes";
 import { WorkflowBusinessError } from "@/modules/workflows/application/workflowUseCaseErrors";
+import { ORGANIZATION_PERMISSIONS } from "@/modules/authorization/domain/authorization";
 
 export async function removeWorkflowStep(
   dependencies: WorkflowApplicationDependencies,
   input: WorkflowStepActionInput,
 ) {
+  await dependencies.authorization.require(ORGANIZATION_PERMISSIONS.workflowDefinitionUpdate);
   const workflow = await getPersistedWorkflowById(
     dependencies,
     input.workflowId,

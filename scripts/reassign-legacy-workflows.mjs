@@ -12,11 +12,20 @@ if (!email) {
 } else {
   const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }) });
   try {
-    const target = await prisma.user.findUnique({ where: { normalizedEmail: email }, select: { id: true, email: true } });
+    const target = await prisma.user.findUnique({
+      where: { normalizedEmail: email },
+      select: {
+        id: true,
+        email: true,
+        memberships: { where: { role: "OWNER" }, orderBy: { createdAt: "asc" }, take: 1 },
+      },
+    });
     if (!target) throw new Error("Usuário de destino não encontrado.");
+    const targetOrganization = target.memberships[0];
+    if (!targetOrganization) throw new Error("Usuário de destino não possui organização própria.");
     const result = await prisma.workflowDefinition.updateMany({
-      where: { ownerUserId: "legacy-workflow-owner" },
-      data: { ownerUserId: target.id },
+      where: { organizationId: "legacy-workflow-owner" },
+      data: { organizationId: targetOrganization.organizationId, createdByUserId: target.id },
     });
     console.log(`${result.count} workflow(s) legado(s) atribuído(s) a ${target.email}.`);
   } catch (error) {

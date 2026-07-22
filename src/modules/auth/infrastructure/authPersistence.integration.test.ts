@@ -29,6 +29,7 @@ integration("authentication persistence with PostgreSQL", () => {
 
   afterAll(async () => {
     await prisma.authRateLimitBucket.deleteMany({ where: { key: { startsWith: "auth-test" } } });
+    await prisma.organization.deleteMany({ where: { id: userId } });
     await prisma.user.deleteMany({ where: { id: userId } });
     await prisma.$disconnect();
   });
@@ -37,6 +38,7 @@ integration("authentication persistence with PostgreSQL", () => {
     const now = new Date().toISOString();
     await users.create({ id: userId, email, normalizedEmail: email, name: "Teste", status: "active", passwordHash: "hash", now });
     await expect(users.findByNormalizedEmail(email)).resolves.toMatchObject({ user: { id: userId }, passwordHash: "hash" });
+    await expect(prisma.organizationMembership.findUnique({ where: { organizationId_userId: { organizationId: userId, userId } } })).resolves.toMatchObject({ role: "OWNER" });
   });
 
   it("persiste, encontra e revoga sessão pelo hash", async () => {

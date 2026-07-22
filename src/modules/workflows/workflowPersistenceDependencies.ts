@@ -1,7 +1,10 @@
 import { createWorkflowEngine } from "@/modules/workflows/domain/workflowEngineService";
 import { createPrismaWorkflowPersistenceRepository } from "@/modules/workflows/infrastructure/prismaWorkflowPersistenceRepository";
+import { createOrganizationAuthorizationGuard } from "@/modules/authorization/application/organizationAuthorizationGuard";
+import { OrganizationAuthorizationService } from "@/modules/authorization/domain/authorization";
+import { PrismaMembershipRepository } from "@/modules/organizations/infrastructure/prismaMembershipRepository";
 
-export function createWorkflowPersistenceDependencies(ownerUserId: string) {
+export function createWorkflowPersistenceDependencies(actorUserId: string, organizationId = actorUserId) {
   return {
     workflowEngine: createWorkflowEngine({
       clock: {
@@ -13,6 +16,12 @@ export function createWorkflowPersistenceDependencies(ownerUserId: string) {
         createEventId: () => crypto.randomUUID(),
       },
     }),
-    workflowRepository: createPrismaWorkflowPersistenceRepository(ownerUserId),
+    workflowRepository: createPrismaWorkflowPersistenceRepository(organizationId, actorUserId),
+    authorization: createOrganizationAuthorizationGuard(
+      new PrismaMembershipRepository(),
+      new OrganizationAuthorizationService(),
+      actorUserId,
+      organizationId,
+    ),
   };
 }

@@ -7,11 +7,13 @@ import {
   WorkflowBusinessError,
   WorkflowValidationError,
 } from "@/modules/workflows/application/workflowUseCaseErrors";
+import { ORGANIZATION_PERMISSIONS } from "@/modules/authorization/domain/authorization";
 
 export async function registerPersistedWorkflowFailure(
   dependencies: WorkflowApplicationDependencies,
   input: RegisterWorkflowFailureUseCaseInput,
 ) {
+  await dependencies.authorization.require(ORGANIZATION_PERMISSIONS.workflowExecutionManage);
   if (!input.failure.reason.trim()) {
     throw new WorkflowValidationError("O motivo da falha é obrigatório.");
   }

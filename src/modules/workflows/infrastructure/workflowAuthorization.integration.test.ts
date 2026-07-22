@@ -34,7 +34,11 @@ integration("workflow authorization with PostgreSQL", () => {
   });
   let repositoryA: WorkflowPersistenceRepository;
   let repositoryB: WorkflowPersistenceRepository;
-  const dependenciesB = { workflowEngine: engine, get workflowRepository() { return repositoryB; } };
+  const dependenciesB = {
+    workflowEngine: engine,
+    get workflowRepository() { return repositoryB; },
+    authorization: { require: async () => undefined },
+  };
 
   beforeAll(async () => {
     const { PrismaWorkflowPersistenceRepository } = await import("@/modules/workflows/infrastructure/prismaWorkflowPersistenceRepository");
@@ -44,6 +48,14 @@ integration("workflow authorization with PostgreSQL", () => {
       { id: ownerA, email: `${ownerA}@test.invalid`, normalizedEmail: `${ownerA}@test.invalid`, name: "A", status: "ACTIVE" },
       { id: ownerB, email: `${ownerB}@test.invalid`, normalizedEmail: `${ownerB}@test.invalid`, name: "B", status: "ACTIVE" },
     ] });
+    await prisma.organization.createMany({ data: [
+      { id: ownerA, name: "Organização A" },
+      { id: ownerB, name: "Organização B" },
+    ] });
+    await prisma.organizationMembership.createMany({ data: [
+      { organizationId: ownerA, userId: ownerA, role: "OWNER" },
+      { organizationId: ownerB, userId: ownerB, role: "OWNER" },
+    ] });
     const created = engine.createWorkflow({ name: "Privado A", steps: [{ name: "Etapa", order: 1 }] });
     if (!created.success) throw new Error(created.error.message);
     await repositoryA.save(created.data);
@@ -52,6 +64,7 @@ integration("workflow authorization with PostgreSQL", () => {
   afterAll(async () => {
     await prisma.workflowRun.deleteMany({ where: { id: workflowId } });
     await prisma.workflowDefinition.deleteMany({ where: { id: workflowId } });
+    await prisma.organization.deleteMany({ where: { id: { in: [ownerA, ownerB] } } });
     await prisma.user.deleteMany({ where: { id: { in: [ownerA, ownerB] } } });
     await prisma.$disconnect();
   });

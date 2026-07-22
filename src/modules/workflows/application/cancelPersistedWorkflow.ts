@@ -7,11 +7,13 @@ import {
   WorkflowBusinessError,
   WorkflowValidationError,
 } from "@/modules/workflows/application/workflowUseCaseErrors";
+import { ORGANIZATION_PERMISSIONS } from "@/modules/authorization/domain/authorization";
 
 export async function cancelPersistedWorkflow(
   dependencies: WorkflowApplicationDependencies,
   input: CancelWorkflowUseCaseInput,
 ) {
+  await dependencies.authorization.require(ORGANIZATION_PERMISSIONS.workflowExecutionManage);
   if (!input.reason.trim()) {
     throw new WorkflowValidationError("O motivo do cancelamento é obrigatório.");
   }

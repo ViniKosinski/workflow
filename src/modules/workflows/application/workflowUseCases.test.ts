@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { addWorkflowStep } from "@/modules/workflows/application/addWorkflowStep";
 import { cancelPersistedWorkflow } from "@/modules/workflows/application/cancelPersistedWorkflow";
 import { completePersistedWorkflowStep } from "@/modules/workflows/application/completePersistedWorkflowStep";
@@ -113,6 +113,7 @@ function createDependencies() {
   const dependencies: WorkflowApplicationDependencies = {
     workflowEngine: createWorkflowEngine(createTestEngineDependencies()),
     workflowRepository: repository,
+    authorization: { require: vi.fn(async () => undefined) },
   };
 
   return { dependencies, repository };

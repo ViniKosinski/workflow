@@ -6,11 +6,13 @@ import {
   WorkflowBusinessError,
   WorkflowValidationError,
 } from "@/modules/workflows/application/workflowUseCaseErrors";
+import { ORGANIZATION_PERMISSIONS } from "@/modules/authorization/domain/authorization";
 
 export async function createWorkflow(
   dependencies: WorkflowApplicationDependencies,
   input: CreateWorkflowUseCaseInput,
 ) {
+  await dependencies.authorization.require(ORGANIZATION_PERMISSIONS.workflowCreate);
   if (!input.name.trim()) {
     throw new WorkflowValidationError("O nome do fluxo é obrigatório.");
   }

@@ -7,11 +7,13 @@ import {
   WorkflowBusinessError,
   WorkflowValidationError,
 } from "@/modules/workflows/application/workflowUseCaseErrors";
+import { ORGANIZATION_PERMISSIONS } from "@/modules/authorization/domain/authorization";
 
 export async function renameWorkflowStep(
   dependencies: WorkflowApplicationDependencies,
   input: RenameWorkflowStepUseCaseInput,
 ) {
+  await dependencies.authorization.require(ORGANIZATION_PERMISSIONS.workflowDefinitionUpdate);
   if (!input.name.trim()) {
     throw new WorkflowValidationError("O nome da etapa é obrigatório.");
   }

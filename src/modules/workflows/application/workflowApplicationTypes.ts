@@ -4,10 +4,12 @@ import type {
   WorkflowStepFailureResult,
 } from "@/modules/workflows/domain/workflowEngine";
 import type { WorkflowPersistenceRepository } from "@/modules/workflows/domain/workflowPersistenceRepository";
+import type { OrganizationAuthorizationGuard } from "@/modules/authorization/application/organizationAuthorizationGuard";
 
 export type WorkflowApplicationDependencies = Readonly<{
   workflowEngine: WorkflowEngineService;
   workflowRepository: WorkflowPersistenceRepository;
+  authorization: OrganizationAuthorizationGuard;
 }>;
 
 export type CreateWorkflowUseCaseInput = Readonly<{

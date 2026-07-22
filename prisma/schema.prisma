@@ -13,6 +13,15 @@ enum UserStatus {
   @@map("user_status")
 }
 
+enum OrganizationRole {
+  OWNER  @map("owner")
+  ADMIN  @map("admin")
+  EDITOR @map("editor")
+  VIEWER @map("viewer")
+
+  @@map("organization_role")
+}
+
 model User {
   id              String         @id @db.VarChar(64)
   email           String         @db.VarChar(320)
@@ -23,9 +32,36 @@ model User {
   updatedAt       DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
   credential      UserCredential?
   sessions        AuthSession[]
-  workflows       WorkflowDefinition[]
+  memberships     OrganizationMembership[]
+  createdWorkflows WorkflowDefinition[]
 
   @@map("users")
+}
+
+model Organization {
+  id          String                   @id @db.VarChar(64)
+  name        String                   @db.VarChar(160)
+  createdAt   DateTime                 @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime                 @updatedAt @map("updated_at") @db.Timestamptz(6)
+  memberships OrganizationMembership[]
+  workflows   WorkflowDefinition[]
+
+  @@map("organizations")
+}
+
+model OrganizationMembership {
+  organizationId String           @map("organization_id") @db.VarChar(64)
+  userId         String           @map("user_id") @db.VarChar(64)
+  role           OrganizationRole
+  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([organizationId, userId])
+  @@index([userId, organizationId])
+  @@index([organizationId, role])
+  @@map("organization_memberships")
 }
 
 model UserCredential {
@@ -94,18 +130,21 @@ enum WorkflowEventScope {
 }
 
 model WorkflowDefinition {
-  id          String    @id @db.VarChar(64)
-  ownerUserId String    @map("owner_user_id") @db.VarChar(64)
-  name        String    @db.VarChar(255)
-  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
-  archivedAt  DateTime? @map("archived_at") @db.Timestamptz(6)
+  id              String    @id @db.VarChar(64)
+  organizationId  String    @map("organization_id") @db.VarChar(64)
+  createdByUserId String    @map("created_by_user_id") @db.VarChar(64)
+  name            String    @db.VarChar(255)
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  archivedAt      DateTime? @map("archived_at") @db.Timestamptz(6)
 
-  owner User @relation(fields: [ownerUserId], references: [id], onDelete: Restrict)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  createdBy    User         @relation(fields: [createdByUserId], references: [id], onDelete: Restrict)
   steps WorkflowDefinitionStep[]
   runs  WorkflowRun[]
 
-  @@index([ownerUserId, createdAt])
+  @@index([organizationId, createdAt])
+  @@index([createdByUserId])
   @@map("workflow_definitions")
 }
 

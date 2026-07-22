@@ -7,11 +7,13 @@ import {
   WorkflowBusinessError,
   WorkflowValidationError,
 } from "@/modules/workflows/application/workflowUseCaseErrors";
+import { ORGANIZATION_PERMISSIONS } from "@/modules/authorization/domain/authorization";
 
 export async function reorderWorkflowSteps(
   dependencies: WorkflowApplicationDependencies,
   input: ReorderWorkflowStepsUseCaseInput,
 ) {
+  await dependencies.authorization.require(ORGANIZATION_PERMISSIONS.workflowDefinitionUpdate);
   if (input.orderedStepIds.length === 0) {
     throw new WorkflowValidationError("A nova ordem precisa informar etapas.");
   }

@@ -4,11 +4,13 @@ import type {
 } from "@/modules/workflows/application/workflowApplicationTypes";
 import { getPersistedWorkflowById } from "@/modules/workflows/application/getPersistedWorkflowById";
 import { WorkflowBusinessError } from "@/modules/workflows/application/workflowUseCaseErrors";
+import { ORGANIZATION_PERMISSIONS } from "@/modules/authorization/domain/authorization";
 
 export async function startPersistedWorkflowStep(
   dependencies: WorkflowApplicationDependencies,
   input: WorkflowStepActionInput,
 ) {
+  await dependencies.authorization.require(ORGANIZATION_PERMISSIONS.workflowExecutionManage);
   const workflow = await getPersistedWorkflowById(
     dependencies,
     input.workflowId,
