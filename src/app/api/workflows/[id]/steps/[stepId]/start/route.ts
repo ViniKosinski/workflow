@@ -3,7 +3,7 @@ import {
   workflowErrorResponse,
   workflowJsonResponse,
 } from "@/modules/workflows/presentation/api/workflowApiResponses";
-import { workflowPersistenceDependencies } from "@/modules/workflows/workflowPersistenceDependencies";
+import { getWorkflowRequestContext } from "@/app/api/workflows/_workflowRequest";
 
 type WorkflowStepRouteContext = {
   params: Promise<{
@@ -19,7 +19,7 @@ export async function POST(
   try {
     const { id, stepId } = await context.params;
     const workflow = await startPersistedWorkflowStep(
-      workflowPersistenceDependencies,
+      (await getWorkflowRequestContext(_request)).dependencies,
       {
         workflowId: id,
         stepId,

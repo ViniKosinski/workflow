@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { WorkflowApplicationDependencies } from "@/modules/workflows/application/workflowApplicationTypes";
 import { getPersistedWorkflowById } from "@/modules/workflows/application/getPersistedWorkflowById";
 import { WORKFLOW_STATUSES } from "@/modules/workflows/domain/workflowEngine";
 import { DraftWorkflowStepsEditor } from "@/modules/workflows/presentation/components/DraftWorkflowStepsEditor";
@@ -6,25 +7,30 @@ import { WorkflowExecutionPanel } from "@/modules/workflows/presentation/compone
 import { WorkflowHistory } from "@/modules/workflows/presentation/components/WorkflowHistory";
 import { WorkflowStatusBadge } from "@/modules/workflows/presentation/components/WorkflowStatusBadge";
 import { WorkflowStepsList } from "@/modules/workflows/presentation/components/WorkflowStepsList";
-import { workflowPersistenceDependencies } from "@/modules/workflows/workflowPersistenceDependencies";
 import { AppHeader } from "@/shared/components/layout/AppHeader";
 
 type WorkflowDetailsPageProps = {
   workflowId: string;
+  userName: string;
+  logoutControl: React.ReactNode;
+  dependencies: WorkflowApplicationDependencies;
 };
 
 export async function WorkflowDetailsPage({
   workflowId,
+  userName,
+  logoutControl,
+  dependencies,
 }: WorkflowDetailsPageProps) {
   try {
     const workflow = await getPersistedWorkflowById(
-      workflowPersistenceDependencies,
+      dependencies,
       workflowId,
     );
 
     return (
       <main className="min-h-screen bg-slate-50">
-        <AppHeader />
+        <AppHeader userName={userName} logoutControl={logoutControl} />
 
         <section className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-6 py-8">
           <div className="border-b border-slate-200 pb-6">
@@ -63,7 +69,7 @@ export async function WorkflowDetailsPage({
   } catch {
     return (
       <main className="min-h-screen bg-slate-50">
-        <AppHeader />
+        <AppHeader userName={userName} logoutControl={logoutControl} />
         <section className="mx-auto w-full max-w-6xl px-6 py-8">
           <Link className="text-sm font-semibold text-brand-700" href="/workflows">
             Voltar para fluxos

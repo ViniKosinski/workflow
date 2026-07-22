@@ -4,7 +4,8 @@ import {
   workflowErrorResponse,
   workflowJsonResponse,
 } from "@/modules/workflows/presentation/api/workflowApiResponses";
-import { workflowPersistenceDependencies } from "@/modules/workflows/workflowPersistenceDependencies";
+import { getWorkflowRequestContext } from "@/app/api/workflows/_workflowRequest";
+import { parseStepNamePayload } from "@/modules/workflows/presentation/api/workflowRequestPayloads";
 
 type WorkflowStepRouteContext = {
   params: Promise<{
@@ -13,21 +14,18 @@ type WorkflowStepRouteContext = {
   }>;
 };
 
-type RenameWorkflowStepPayload = {
-  name?: string;
-};
-
 export async function PATCH(
   request: Request,
   context: WorkflowStepRouteContext,
 ) {
   try {
     const { id, stepId } = await context.params;
-    const payload = (await request.json()) as RenameWorkflowStepPayload;
-    const workflow = await renameWorkflowStep(workflowPersistenceDependencies, {
+    const { dependencies } = await getWorkflowRequestContext(request);
+    const payload = await parseStepNamePayload(request);
+    const workflow = await renameWorkflowStep(dependencies, {
       workflowId: id,
       stepId,
-      name: payload.name ?? "",
+      name: payload.name,
     });
 
     return workflowJsonResponse({ workflow });
@@ -42,7 +40,7 @@ export async function DELETE(
 ) {
   try {
     const { id, stepId } = await context.params;
-    const workflow = await removeWorkflowStep(workflowPersistenceDependencies, {
+    const workflow = await removeWorkflowStep((await getWorkflowRequestContext(_request)).dependencies, {
       workflowId: id,
       stepId,
     });

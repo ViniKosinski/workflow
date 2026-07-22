@@ -77,6 +77,9 @@ export function WorkflowExecutionPanel({ workflow }: WorkflowExecutionPanelProps
       setReason("");
       router.refresh();
       return true;
+    } catch {
+      setError("Não foi possível conectar ao servidor.");
+      return false;
     } finally {
       setIsSubmitting(false);
     }

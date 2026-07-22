@@ -3,7 +3,8 @@ import {
   workflowErrorResponse,
   workflowJsonResponse,
 } from "@/modules/workflows/presentation/api/workflowApiResponses";
-import { workflowPersistenceDependencies } from "@/modules/workflows/workflowPersistenceDependencies";
+import { getWorkflowRequestContext } from "@/app/api/workflows/_workflowRequest";
+import { parseCompletionPayload } from "@/modules/workflows/presentation/api/workflowRequestPayloads";
 
 type WorkflowStepRouteContext = {
   params: Promise<{
@@ -18,14 +19,15 @@ export async function POST(
 ) {
   try {
     const { id, stepId } = await context.params;
-    const body = await request.json().catch(() => ({}));
+    const { dependencies } = await getWorkflowRequestContext(request);
+    const body = await parseCompletionPayload(request);
     const workflow = await completePersistedWorkflowStep(
-      workflowPersistenceDependencies,
+      dependencies,
       {
         workflowId: id,
         stepId,
         result: {
-          message: String(body.message ?? "Etapa concluída."),
+          message: body.message,
         },
       },
     );

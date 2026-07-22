@@ -2,10 +2,10 @@ import Link from "next/link";
 import { WorkflowForm } from "@/modules/workflows/presentation/components/WorkflowForm";
 import { AppHeader } from "@/shared/components/layout/AppHeader";
 
-export function NewWorkflowPage() {
+export function NewWorkflowPage({ userName, logoutControl }: Readonly<{ userName: string; logoutControl: React.ReactNode }>) {
   return (
     <main className="min-h-screen bg-slate-50">
-      <AppHeader />
+      <AppHeader userName={userName} logoutControl={logoutControl} />
 
       <section className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-6 py-8">
         <div className="border-b border-slate-200 pb-6">
