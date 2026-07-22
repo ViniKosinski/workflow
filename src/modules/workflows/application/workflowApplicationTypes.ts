@@ -1,4 +1,5 @@
 import type {
+  StepAssignee,
   WorkflowEngineService,
   WorkflowStepCompletionResult,
   WorkflowStepFailureResult,
@@ -31,6 +32,8 @@ export type WorkflowStepActionInput = Readonly<{
   workflowId: string;
   stepId: string;
 }>;
+
+export type AssignWorkflowStepUseCaseInput = WorkflowStepActionInput & Readonly<{ assignee: StepAssignee }>;
 
 export type AddWorkflowStepUseCaseInput = Readonly<{
   workflowId: string;

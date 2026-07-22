@@ -100,6 +100,7 @@ export const WORKFLOW_EVENT_TYPES = {
   workflowPrepared: "workflow.prepared",
   workflowStepAdded: "workflow.step_added",
   workflowStepRenamed: "workflow.step_renamed",
+  workflowStepAssigned: "workflow.step_assigned",
   workflowStepRemoved: "workflow.step_removed",
   workflowStepsReordered: "workflow.steps_reordered",
   executionStarted: "execution.started",
@@ -156,7 +157,31 @@ export type WorkflowStep = Readonly<{
   startedAt?: IsoDateString;
   finishedAt?: IsoDateString;
   errorMessage?: string;
+  assignee?: StepAssignee;
+  priority?: "normal";
 }>;
+
+export type StepAssignee =
+  | Readonly<{ type: "user"; userId: string }>
+  | Readonly<{ type: "role"; role: "owner" | "admin" | "editor" | "viewer" }>;
+
+export class WorkflowAssignmentError extends Error {
+  constructor(message: string) { super(message); this.name = "WorkflowAssignmentError"; }
+}
+
+export class WorkflowAssignmentService {
+  requireValid(assignee: StepAssignee, organizationMemberIds: ReadonlySet<string>) {
+    if (assignee.type === "user") {
+      if (!assignee.userId.trim() || !organizationMemberIds.has(assignee.userId)) {
+        throw new WorkflowAssignmentError("O responsável precisa ser membro da organização.");
+      }
+      return;
+    }
+    if (!["owner", "admin", "editor", "viewer"].includes(assignee.role)) {
+      throw new WorkflowAssignmentError("Papel responsável inválido.");
+    }
+  }
+}
 
 export type BaseWorkflowExecutionEvent = Readonly<{
   id: WorkflowExecutionEventId;
@@ -210,6 +235,7 @@ export type CreateWorkflowInput = Readonly<{
       id?: WorkflowStepId;
       name: string;
       order: number;
+      assignee?: StepAssignee;
     }>
   >;
 }>;
@@ -227,6 +253,12 @@ export type RenameWorkflowStepInput = Readonly<{
   workflow: Workflow;
   stepId: WorkflowStepId;
   name: string;
+}>;
+
+export type AssignWorkflowStepInput = Readonly<{
+  workflow: Workflow;
+  stepId: WorkflowStepId;
+  assignee: StepAssignee;
 }>;
 
 export type RemoveWorkflowStepInput = Readonly<{
@@ -252,6 +284,7 @@ export type CompleteWorkflowStepInput = Readonly<{
   workflow: Workflow;
   stepId: WorkflowStepId;
   result: WorkflowStepCompletionResult;
+  executorUserId?: string;
 }>;
 
 export type RegisterWorkflowFailureInput = Readonly<{
@@ -329,6 +362,7 @@ export type WorkflowEngineService = Readonly<{
   renameStep: (
     input: RenameWorkflowStepInput,
   ) => WorkflowEngineResult<Workflow>;
+  assignStep: (input: AssignWorkflowStepInput) => WorkflowEngineResult<Workflow>;
   removeStep: (
     input: RemoveWorkflowStepInput,
   ) => WorkflowEngineResult<Workflow>;

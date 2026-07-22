@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { authenticateUser } from "@/modules/auth/application/authenticateUser";
 import type { AuthApplicationDependencies } from "@/modules/auth/application/authApplicationTypes";
 import { AuthValidationError, InvalidCredentialsError, UnauthenticatedError } from "@/modules/auth/application/authErrors";
+import { validatePassword } from "@/modules/auth/application/authValidation";
 import { changePassword } from "@/modules/auth/application/changePassword";
 import { getAuthenticatedUser } from "@/modules/auth/application/getAuthenticatedUser";
 import { logoutUser } from "@/modules/auth/application/logoutUser";
@@ -83,6 +84,11 @@ async function registerAndLogin(dependencies: AuthApplicationDependencies) {
 }
 
 describe("auth application use cases", () => {
+  it("aceita senha com 8 caracteres e rejeita com 7", () => {
+    expect(validatePassword("12345678")).toBe("12345678");
+    expect(() => validatePassword("1234567")).toThrow(AuthValidationError);
+  });
+
   it("registra usuário normalizando e-mail sem criar sessão automaticamente", async () => {
     const { dependencies, sessions } = createTestDependencies();
     await registerUser(dependencies, { name: "  Maria Silva  ", email: " MARIA@Example.COM ", password: "uma senha longa e segura" });

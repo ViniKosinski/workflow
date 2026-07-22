@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { OrganizationSwitcher } from "@/modules/organizations/presentation/components/OrganizationSwitcher";
 
 export function AppHeader({ userName, logoutControl }: Readonly<{ userName: string; logoutControl: React.ReactNode }>) {
   return (
@@ -12,8 +13,10 @@ export function AppHeader({ userName, logoutControl }: Readonly<{ userName: stri
         </div>
 
         <nav className="flex flex-wrap items-center justify-end gap-x-4 gap-y-1 text-sm font-medium text-slate-600">
+          <OrganizationSwitcher />
           <Link href="/">Painel</Link>
           <Link href="/workflows">Fluxos</Link>
+          <Link href="/tasks">Minha fila</Link>
           <Link href="/organizations">Organizações</Link>
           <Link href="/workflows/new">Novo fluxo</Link>
           <Link href="/profile">{userName}</Link>

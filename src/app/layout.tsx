@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { ActiveOrganizationProvider } from "@/modules/organizations/presentation/components/ActiveOrganizationProvider";
 
 export const metadata: Metadata = {
   title: "Workflow",
@@ -13,7 +14,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="pt-BR">
-      <body>{children}</body>
+      <body><ActiveOrganizationProvider>{children}</ActiveOrganizationProvider></body>
     </html>
   );
 }

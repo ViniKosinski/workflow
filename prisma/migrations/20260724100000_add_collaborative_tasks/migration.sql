@@ -1,0 +1,10 @@
+CREATE TYPE "step_assignee_type" AS ENUM ('user', 'role');
+CREATE TYPE "task_priority" AS ENUM ('normal');
+ALTER TABLE "workflow_definition_steps" ADD COLUMN "assignee_type" "step_assignee_type" NOT NULL DEFAULT 'user', ADD COLUMN "assignee_user_id" VARCHAR(64), ADD COLUMN "assignee_role" "organization_role", ADD COLUMN "priority" "task_priority" NOT NULL DEFAULT 'normal';
+UPDATE "workflow_definition_steps" s SET "assignee_user_id" = d."created_by_user_id" FROM "workflow_definitions" d WHERE d."id" = s."workflow_definition_id";
+ALTER TABLE "workflow_run_steps" ADD COLUMN "assignee_type" "step_assignee_type" NOT NULL DEFAULT 'user', ADD COLUMN "assignee_user_id" VARCHAR(64), ADD COLUMN "assignee_role" "organization_role", ADD COLUMN "priority" "task_priority" NOT NULL DEFAULT 'normal';
+UPDATE "workflow_run_steps" r SET "assignee_type" = d."assignee_type", "assignee_user_id" = d."assignee_user_id", "assignee_role" = d."assignee_role", "priority" = d."priority" FROM "workflow_definition_steps" d WHERE d."id" = r."workflow_definition_step_id";
+CREATE INDEX "workflow_definition_steps_assignee_user_id_idx" ON "workflow_definition_steps"("assignee_user_id");
+CREATE INDEX "workflow_run_steps_assignee_user_id_status_idx" ON "workflow_run_steps"("assignee_user_id", "status");
+ALTER TABLE "workflow_definition_steps" ADD CONSTRAINT "workflow_definition_steps_assignee_user_id_fkey" FOREIGN KEY ("assignee_user_id") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "workflow_run_steps" ADD CONSTRAINT "workflow_run_steps_assignee_user_id_fkey" FOREIGN KEY ("assignee_user_id") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

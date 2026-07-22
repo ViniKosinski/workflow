@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import type {
   Workflow,
   WorkflowStep,
@@ -35,6 +35,16 @@ export function DraftWorkflowStepsEditor({
   const [newStepName, setNewStepName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [assignees, setAssignees] = useState<ReadonlyArray<{ value: string; label: string }>>([]);
+
+  useEffect(() => {
+    fetch(`/api/workflows/${workflow.id}/assignees`).then((response) => response.json()).then((payload: { users?: Array<{ userId: string; name: string }>; roles?: string[] }) => {
+      setAssignees([
+        ...(payload.users ?? []).map((user) => ({ value: `user:${user.userId}`, label: user.name })),
+        ...(payload.roles ?? []).map((role) => ({ value: `role:${role}`, label: `Papel ${role}` })),
+      ]);
+    }).catch(() => undefined);
+  }, [workflow.id]);
 
   const orderedSteps = useMemo(
     () => [...steps].sort((firstStep, secondStep) => firstStep.order - secondStep.order),
@@ -108,6 +118,15 @@ export function DraftWorkflowStepsEditor({
     });
   }
 
+  async function assignStep(stepId: string, value: string) {
+    const [type, identifier] = value.split(":", 2);
+    await persistStepChange(`/api/workflows/${workflow.id}/steps/${stepId}/assignee`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(type === "user" ? { type, userId: identifier } : { type, role: identifier }),
+    });
+  }
+
   async function moveStep(stepId: string, direction: -1 | 1) {
     const currentIndex = orderedSteps.findIndex((step) => step.id === stepId);
     const targetIndex = currentIndex + direction;
@@ -156,6 +175,16 @@ export function DraftWorkflowStepsEditor({
                 type="text"
                 value={stepNames[step.id] ?? ""}
               />
+              <select
+                aria-label={`Responsável por ${step.name}`}
+                className="h-10 border border-slate-300 px-3 text-sm"
+                disabled={isSubmitting || assignees.length === 0}
+                value={step.assignee?.type === "role" ? `role:${step.assignee.role}` : `user:${step.assignee?.userId ?? ""}`}
+                onChange={(event) => void assignStep(step.id, event.target.value)}
+              >
+                {!step.assignee && <option value="">Selecione o responsável</option>}
+                {assignees.map((assignee) => <option key={assignee.value} value={assignee.value}>{assignee.label}</option>)}
+              </select>
               <div className="grid grid-cols-4 gap-2 md:flex md:items-center">
                 <button
                   className="h-10 border border-slate-300 px-3 text-sm font-semibold text-slate-700 disabled:text-slate-300"

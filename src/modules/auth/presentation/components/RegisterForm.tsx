@@ -48,11 +48,11 @@ export function RegisterForm() {
       <input name="email" type="email" autoComplete="email" required className="mt-2 w-full rounded-md border border-slate-300 px-3 py-2 font-normal" />
     </label>
     <label className="block text-sm font-semibold text-slate-700">Senha
-      <input name="password" type="password" minLength={12} maxLength={128} autoComplete="new-password" required className="mt-2 w-full rounded-md border border-slate-300 px-3 py-2 font-normal" />
-      <span className="mt-1 block text-xs font-normal text-slate-500">Use pelo menos 12 caracteres.</span>
+      <input name="password" type="password" minLength={8} maxLength={128} autoComplete="new-password" required className="mt-2 w-full rounded-md border border-slate-300 px-3 py-2 font-normal" />
+      <span className="mt-1 block text-xs font-normal text-slate-500">Use pelo menos 8 caracteres.</span>
     </label>
     <label className="block text-sm font-semibold text-slate-700">Confirmar senha
-      <input name="confirmation" type="password" minLength={12} maxLength={128} autoComplete="new-password" required className="mt-2 w-full rounded-md border border-slate-300 px-3 py-2 font-normal" />
+      <input name="confirmation" type="password" minLength={8} maxLength={128} autoComplete="new-password" required className="mt-2 w-full rounded-md border border-slate-300 px-3 py-2 font-normal" />
     </label>
     {error && <p aria-live="polite" className="rounded-md bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
     <Button type="submit" disabled={submitting} className="w-full">{submitting ? "Criando conta..." : "Criar conta"}</Button>

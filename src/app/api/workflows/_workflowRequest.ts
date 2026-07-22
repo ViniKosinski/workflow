@@ -1,6 +1,7 @@
 import { resolveAuthenticatedUser } from "@/modules/auth/presentation/server/authenticatedUser";
 import { createWorkflowPersistenceDependencies } from "@/modules/workflows/workflowPersistenceDependencies";
 import { HttpRequestError, validateMutationRequest } from "@/shared/presentation/api/httpRequest";
+import { getActiveOrganizationId } from "@/modules/organizations/presentation/server/activeOrganization";
 
 export async function getWorkflowRequestContext(request?: Request) {
   const user = await resolveAuthenticatedUser();
@@ -9,7 +10,7 @@ export async function getWorkflowRequestContext(request?: Request) {
   if (requestedOrganizationId && requestedOrganizationId.length > 64) {
     throw new HttpRequestError(400, "Organização inválida.");
   }
-  const organizationId = requestedOrganizationId || user.userId;
+  const organizationId = requestedOrganizationId || await getActiveOrganizationId(user.userId);
   return {
     user,
     organizationId,

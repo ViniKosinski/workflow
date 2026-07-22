@@ -4,7 +4,7 @@ import { WorkflowList } from "@/modules/workflows/presentation/components/Workfl
 import { AppHeader } from "@/shared/components/layout/AppHeader";
 import { Button } from "@/shared/components/ui/Button";
 
-export function DashboardPage({ userName, logoutControl, workflows, loadError }: Readonly<{ userName: string; logoutControl: React.ReactNode; workflows: ReadonlyArray<Workflow>; loadError: string | null }>) {
+export function DashboardPage({ userName, logoutControl, workflows, pendingTaskCount, loadError }: Readonly<{ userName: string; logoutControl: React.ReactNode; workflows: ReadonlyArray<Workflow>; pendingTaskCount: number; loadError: string | null }>) {
   return (
     <main className="min-h-screen bg-slate-50">
       <AppHeader userName={userName} logoutControl={logoutControl} />
@@ -29,6 +29,10 @@ export function DashboardPage({ userName, logoutControl, workflows, loadError }:
           </Link>
         </div>
 
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Link href="/tasks" className="rounded-lg border border-slate-200 bg-white p-5"><p className="text-sm text-slate-500">Tarefas pendentes</p><strong className="mt-1 block text-3xl">{pendingTaskCount}</strong></Link>
+          <Link href="/workflows" className="rounded-lg border border-slate-200 bg-white p-5"><p className="text-sm text-slate-500">Workflows recentes</p><strong className="mt-1 block text-3xl">{workflows.length}</strong></Link>
+        </div>
         {loadError ? <div className="rounded-md border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">{loadError}</div> : <WorkflowList workflows={workflows} />}
       </section>
     </main>

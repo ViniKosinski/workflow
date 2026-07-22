@@ -18,8 +18,8 @@ export function validateName(value: string) {
 }
 
 export function validatePassword(value: string) {
-  if (value.length < 12) {
-    throw new AuthValidationError("A senha deve ter pelo menos 12 caracteres.");
+  if (value.length < 8) {
+    throw new AuthValidationError("A senha deve ter pelo menos 8 caracteres.");
   }
   if (value.length > 128) {
     throw new AuthValidationError("A senha deve ter no máximo 128 caracteres.");

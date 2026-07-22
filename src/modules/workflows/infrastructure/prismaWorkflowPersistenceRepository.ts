@@ -167,6 +167,10 @@ export class PrismaWorkflowPersistenceRepository
         order: step.order,
         createdAt: mapIsoDateToDate(workflow.createdAt),
         updatedAt: mapIsoDateToDate(workflow.updatedAt),
+        assigneeType: step.assignee?.type === "role" ? "ROLE" as const : "USER" as const,
+        assigneeUserId: step.assignee?.type === "user" ? step.assignee.userId : this.createdByUserId,
+        assigneeRole: step.assignee?.type === "role" ? step.assignee.role.toUpperCase() as "OWNER" | "ADMIN" | "EDITOR" | "VIEWER" : null,
+        priority: "NORMAL" as const,
     }));
     if (operation === "create") {
       await transaction.workflowDefinitionStep.createMany({ data: definitionSteps });
@@ -178,7 +182,7 @@ export class PrismaWorkflowPersistenceRepository
       for (const step of definitionSteps) {
         const updated = await transaction.workflowDefinitionStep.updateMany({
           where: { id: step.id, workflowDefinitionId: workflow.id },
-          data: { name: step.name, order: step.order, updatedAt: step.updatedAt },
+          data: { name: step.name, order: step.order, updatedAt: step.updatedAt, assigneeType: step.assigneeType, assigneeUserId: step.assigneeUserId, assigneeRole: step.assigneeRole, priority: step.priority },
         });
         if (updated.count === 0) {
           const collision = await transaction.workflowDefinitionStep.findUnique({ where: { id: step.id }, select: { id: true } });
@@ -234,6 +238,10 @@ export class PrismaWorkflowPersistenceRepository
         errorMessage: step.errorMessage,
         createdAt: mapIsoDateToDate(workflow.createdAt),
         updatedAt: mapIsoDateToDate(workflow.updatedAt),
+        assigneeType: step.assignee?.type === "role" ? "ROLE" as const : "USER" as const,
+        assigneeUserId: step.assignee?.type === "user" ? step.assignee.userId : this.createdByUserId,
+        assigneeRole: step.assignee?.type === "role" ? step.assignee.role.toUpperCase() as "OWNER" | "ADMIN" | "EDITOR" | "VIEWER" : null,
+        priority: "NORMAL" as const,
     }));
     if (operation === "create") {
       await transaction.workflowRunStep.createMany({ data: runSteps });
@@ -255,6 +263,10 @@ export class PrismaWorkflowPersistenceRepository
             finishedAt: step.finishedAt,
             errorMessage: step.errorMessage,
             updatedAt: step.updatedAt,
+            assigneeType: step.assigneeType,
+            assigneeUserId: step.assigneeUserId,
+            assigneeRole: step.assigneeRole,
+            priority: step.priority,
           },
         });
         if (updated.count === 0) {

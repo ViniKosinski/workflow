@@ -176,6 +176,8 @@ export function createWorkflowEngine(
           name: step.name,
           order: step.order,
           status: WORKFLOW_STEP_STATUSES.pending,
+          assignee: step.assignee,
+          priority: "normal",
         }));
 
       const event = createLifecycleEvent(
@@ -342,6 +344,29 @@ export function createWorkflowEngine(
         );
       }
 
+      return succeed(updatedWorkflow, [event]);
+    },
+
+    assignStep(input) {
+      const { workflow, stepId, assignee } = input;
+      const blockedEvent = validateDraftStepChange(workflow);
+      if (blockedEvent) return fail({ code: "INVALID_OPERATION", message: "Responsáveis só podem ser alterados em fluxos em rascunho.", event: blockedEvent }, [blockedEvent]);
+      const step = workflow.steps.find((candidate) => candidate.id === stepId);
+      if (!step) {
+        const event = blockStepChange(workflow, "Etapa não encontrada.");
+        return fail({ code: "INVALID_STEP", message: "Etapa não encontrada.", event }, [event]);
+      }
+      const event = createLifecycleEvent({ workflowId: workflow.id }, {
+        type: WORKFLOW_EVENT_TYPES.workflowStepAssigned,
+        message: "Responsável da etapa alterado.",
+        metadata: assignee.type === "user" ? { stepId, assigneeType: "user", assigneeUserId: assignee.userId } : { stepId, assigneeType: "role", assigneeRole: assignee.role },
+      });
+      const updatedWorkflow = {
+        ...workflow,
+        updatedAt: dependencies.clock.now(),
+        steps: replaceStep(workflow, stepId, (current) => ({ ...current, assignee })),
+        executionHistory: [...workflow.executionHistory, event],
+      };
       return succeed(updatedWorkflow, [event]);
     },
 
@@ -715,7 +740,7 @@ export function createWorkflowEngine(
           fromStatus: step.status,
           toStatus: WORKFLOW_STEP_STATUSES.completed,
           message: "Etapa concluída.",
-          metadata: result.metadata,
+          metadata: { ...result.metadata, ...(input.executorUserId ? { executorUserId: input.executorUserId, transition: "step.completed" } : {}) },
         },
       );
 

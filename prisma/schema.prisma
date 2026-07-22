@@ -22,6 +22,17 @@ enum OrganizationRole {
   @@map("organization_role")
 }
 
+enum StepAssigneeType {
+  USER @map("user")
+  ROLE @map("role")
+  @@map("step_assignee_type")
+}
+
+enum TaskPriority {
+  NORMAL @map("normal")
+  @@map("task_priority")
+}
+
 model User {
   id              String         @id @db.VarChar(64)
   email           String         @db.VarChar(320)
@@ -34,6 +45,8 @@ model User {
   sessions        AuthSession[]
   memberships     OrganizationMembership[]
   createdWorkflows WorkflowDefinition[]
+  assignedDefinitionSteps WorkflowDefinitionStep[] @relation("DefinitionStepAssignee")
+  assignedRunSteps WorkflowRunStep[] @relation("RunStepAssignee")
 
   @@map("users")
 }
@@ -156,11 +169,17 @@ model WorkflowDefinitionStep {
   order                Int
   createdAt            DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt            DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+  assigneeType         StepAssigneeType   @default(USER) @map("assignee_type")
+  assigneeUserId       String?            @map("assignee_user_id") @db.VarChar(64)
+  assigneeRole         OrganizationRole?  @map("assignee_role")
+  priority             TaskPriority       @default(NORMAL)
   workflowDefinition   WorkflowDefinition @relation(fields: [workflowDefinitionId], references: [id], onDelete: Cascade)
+  assigneeUser         User?              @relation("DefinitionStepAssignee", fields: [assigneeUserId], references: [id], onDelete: Restrict)
   runSteps             WorkflowRunStep[]
 
   @@unique([workflowDefinitionId, order])
   @@index([workflowDefinitionId])
+  @@index([assigneeUserId])
   @@map("workflow_definition_steps")
 }
 
@@ -200,16 +219,22 @@ model WorkflowRunStep {
   errorMessage             String?            @map("error_message") @db.Text
   createdAt                DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt                DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+  assigneeType             StepAssigneeType   @default(USER) @map("assignee_type")
+  assigneeUserId           String?            @map("assignee_user_id") @db.VarChar(64)
+  assigneeRole             OrganizationRole?  @map("assignee_role")
+  priority                 TaskPriority       @default(NORMAL)
 
   workflowRun            WorkflowRun              @relation("WorkflowRunSteps", fields: [workflowRunId], references: [id], onDelete: Cascade)
   workflowDefinitionStep WorkflowDefinitionStep?   @relation(fields: [workflowDefinitionStepId], references: [id], onDelete: SetNull)
   currentForRun          WorkflowRun?              @relation("CurrentWorkflowRunStep")
   events                 WorkflowExecutionEvent[]
+  assigneeUser           User?                    @relation("RunStepAssignee", fields: [assigneeUserId], references: [id], onDelete: Restrict)
 
   @@unique([workflowRunId, order])
   @@index([workflowRunId])
   @@index([workflowDefinitionStepId])
   @@index([status])
+  @@index([assigneeUserId, status])
   @@map("workflow_run_steps")
 }
 

@@ -93,6 +93,10 @@ export function mapWorkflowRunStepToDomain(
     startedAt: step.startedAt?.toISOString(),
     finishedAt: step.finishedAt?.toISOString(),
     errorMessage: step.errorMessage ?? undefined,
+    assignee: step.assigneeType === "USER" && step.assigneeUserId
+      ? { type: "user", userId: step.assigneeUserId }
+      : step.assigneeRole ? { type: "role", role: step.assigneeRole.toLowerCase() as "owner" | "admin" | "editor" | "viewer" } : undefined,
+    priority: "normal",
   };
 }
 
