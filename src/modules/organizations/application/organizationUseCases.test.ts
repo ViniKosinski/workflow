@@ -8,6 +8,8 @@ import { listOrganizationMembers } from "@/modules/organizations/application/lis
 import { removeOrganizationMember } from "@/modules/organizations/application/removeOrganizationMember";
 import type { OrganizationApplicationDependencies } from "@/modules/organizations/application/organizationApplicationTypes";
 import type { OrganizationMembership, OrganizationRole } from "@/modules/organizations/domain/membership";
+import { MembershipConcurrencyError } from "@/modules/organizations/domain/membershipTransaction";
+import { OrganizationNotFoundError } from "@/modules/organizations/application/organizationErrors";
 
 function createDependencies(actorRole: OrganizationRole = "owner") {
   const memberships = new Map<string, OrganizationMembership>();
@@ -30,7 +32,7 @@ function createDependencies(actorRole: OrganizationRole = "owner") {
       }),
       remove: vi.fn(async (_organizationId, userId) => { memberships.delete(userId); }),
     },
-    membershipTransactions: { run: async (work) => work(dependencies.memberships) },
+    membershipTransactions: { run: vi.fn(async (work) => work(dependencies.memberships)) },
     users: {
       create: vi.fn(),
       findByNormalizedEmail: vi.fn(async (email) => email === "member@example.com" ? {
@@ -73,6 +75,22 @@ describe("organization use cases", () => {
   it.each(["editor", "viewer"] as const)("%s não gerencia membros", async (role) => {
     const { dependencies } = createDependencies(role);
     await expect(addOrganizationMember(dependencies, "actor", "org", { email: "member@example.com", role: "viewer" })).rejects.toThrow("permissão");
+  });
+
+  it("não consulta e-mail nem membership alvo quando actor não pertence à organização", async () => {
+    const { dependencies, memberships } = createDependencies();
+    memberships.delete("actor");
+    memberships.set("member", { organizationId: "org", userId: "member", role: "viewer", createdAt: "x", updatedAt: "x" });
+    await expect(addOrganizationMember(dependencies, "outsider", "org", { email: "member@example.com", role: "viewer" })).rejects.toBeInstanceOf(OrganizationNotFoundError);
+    expect(dependencies.users.findByNormalizedEmail).not.toHaveBeenCalled();
+    expect(dependencies.membershipTransactions.run).not.toHaveBeenCalled();
+  });
+
+  it("preserva erros de autorização e concorrência sem convertê-los em duplicidade", async () => {
+    const { dependencies, memberships } = createDependencies();
+    memberships.set("member", { organizationId: "org", userId: "member", role: "viewer", createdAt: "x", updatedAt: "x" });
+    vi.spyOn(dependencies.membershipTransactions, "run").mockRejectedValue(new MembershipConcurrencyError());
+    await expect(addOrganizationMember(dependencies, "actor", "org", { email: "member@example.com", role: "viewer" })).rejects.toBeInstanceOf(MembershipConcurrencyError);
   });
 
   it("retorna papel e capabilities pela autoridade central", async () => {

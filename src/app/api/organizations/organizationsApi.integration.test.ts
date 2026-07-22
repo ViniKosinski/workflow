@@ -63,6 +63,11 @@ integration("organizations HTTP API", () => {
     expect((await addMember(post(`http://localhost/api/organizations/${organizationId}/members`, { email: `${users.outsider}@test.invalid`, role: "viewer" }), context(organizationId))).status).toBe(403);
     cookieToken = tokens.outsider;
     expect((await getOrganization(new Request(`http://localhost/api/organizations/${organizationId}`), context(organizationId))).status).toBe(404);
+    const existingEmailResponse = await addMember(post(`http://localhost/api/organizations/${organizationId}/members`, payload), context(organizationId));
+    const unknownEmailResponse = await addMember(post(`http://localhost/api/organizations/${organizationId}/members`, { email: "unknown@test.invalid", role: "viewer" }), context(organizationId));
+    expect(existingEmailResponse.status).toBe(404);
+    expect(unknownEmailResponse.status).toBe(404);
+    expect(await existingEmailResponse.json()).toEqual(await unknownEmailResponse.json());
 
     cookieToken = tokens.owner;
     expect((await removeMember(new Request(`http://localhost/api/organizations/${organizationId}/members/${users.viewer}`, { method: "DELETE", headers: { origin: "http://localhost" } }), memberContext(organizationId, users.viewer))).status).toBe(204);

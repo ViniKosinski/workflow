@@ -1,5 +1,6 @@
 import { OrganizationRole as PrismaOrganizationRole, type Prisma, type PrismaClient } from "@prisma/client";
 import type { OrganizationRole } from "@/modules/organizations/domain/membership";
+import { MembershipDomainError } from "@/modules/organizations/domain/membership";
 import type { MembershipRepository } from "@/modules/organizations/domain/membershipRepository";
 import { prismaClient } from "@/shared/infrastructure/database/prismaClient";
 
@@ -53,6 +54,11 @@ export class PrismaMembershipRepository implements MembershipRepository {
   }
 
   async create(record: Parameters<MembershipRepository["create"]>[0]) {
+    const activeUser = await this.prisma.user.findFirst({
+      where: { id: record.userId, status: "ACTIVE" },
+      select: { id: true },
+    });
+    if (!activeUser) throw new MembershipDomainError("Não foi possível adicionar o usuário informado.");
     const created = await this.prisma.organizationMembership.create({
       data: {
         organizationId: record.organizationId,

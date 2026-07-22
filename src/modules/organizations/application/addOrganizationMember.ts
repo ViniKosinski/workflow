@@ -1,7 +1,9 @@
 import { normalizeEmail } from "@/modules/auth/domain/user";
+import { AuthorizationDeniedError } from "@/modules/authorization/domain/authorization";
 import type { OrganizationApplicationDependencies } from "@/modules/organizations/application/organizationApplicationTypes";
 import { MembershipAlreadyExistsError, MemberUserNotFoundError, OrganizationNotFoundError } from "@/modules/organizations/application/organizationErrors";
 import { parseAssignableRole, type OrganizationRole } from "@/modules/organizations/domain/membership";
+import { MembershipConcurrencyError } from "@/modules/organizations/domain/membershipTransaction";
 
 export async function addOrganizationMember(
   dependencies: OrganizationApplicationDependencies,
@@ -10,6 +12,9 @@ export async function addOrganizationMember(
   input: Readonly<{ email: string; role: OrganizationRole }>,
 ) {
   const role = parseAssignableRole(input.role);
+  const initialActor = await dependencies.memberships.find(organizationId, actorUserId);
+  if (!initialActor) throw new OrganizationNotFoundError();
+  dependencies.authorization.requireAddition(initialActor.role, role);
   const found = await dependencies.users.findByNormalizedEmail(normalizeEmail(input.email));
   if (!found || found.user.status !== "active") throw new MemberUserNotFoundError();
   const now = dependencies.clock.now().toISOString();
@@ -22,6 +27,9 @@ export async function addOrganizationMember(
       return memberships.create({ organizationId, userId: found.user.id, role, createdAt: now, updatedAt: now });
     });
   } catch (error) {
+    if (error instanceof AuthorizationDeniedError || error instanceof OrganizationNotFoundError || error instanceof MembershipConcurrencyError) {
+      throw error;
+    }
     if (await dependencies.memberships.find(organizationId, found.user.id)) {
       throw new MembershipAlreadyExistsError();
     }
