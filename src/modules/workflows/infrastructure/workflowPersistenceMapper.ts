@@ -21,6 +21,7 @@ export const workflowRunInclude = {
     orderBy: {
       order: "asc",
     },
+    include: { workflowDefinitionStep: { include: { outgoingTransitions: { orderBy: { createdAt: "asc" } } } } },
   },
   events: {
     orderBy: [{ occurredAt: "asc" }, { createdAt: "asc" }],
@@ -31,6 +32,7 @@ export const workflowRunInclude = {
 export const workflowRunListInclude = {
   steps: {
     orderBy: { order: "asc" },
+    include: { workflowDefinitionStep: { include: { outgoingTransitions: { orderBy: { createdAt: "asc" } } } } },
   },
   workflowDefinition: true,
 } satisfies Prisma.WorkflowRunInclude;
@@ -49,7 +51,7 @@ export function mapWorkflowRunListRecordToDomain(workflowRun: WorkflowRunListRec
     version: workflowRun.workflowDefinition.version,
     name: workflowRun.workflowDefinition.name,
     status: mapWorkflowStatusToDomain(workflowRun.status),
-    steps: workflowRun.steps.map(mapWorkflowRunStepToDomain),
+    steps: workflowRun.steps.map((step) => mapWorkflowRunStepToDomain(step, workflowRun.workflowDefinition.createdByUserId)),
     currentStepId: workflowRun.currentStepId ?? undefined,
     executionHistory: [],
     createdAt: workflowRun.createdAt.toISOString(),
@@ -67,7 +69,7 @@ export function mapWorkflowRunToDomain(workflowRun: WorkflowRunRecord): Workflow
     version: workflowRun.workflowDefinition.version,
     name: workflowRun.workflowDefinition.name,
     status: mapWorkflowStatusToDomain(workflowRun.status),
-    steps: workflowRun.steps.map(mapWorkflowRunStepToDomain),
+    steps: workflowRun.steps.map((step) => mapWorkflowRunStepToDomain(step, workflowRun.workflowDefinition.createdByUserId)),
     currentStepId: workflowRun.currentStepId ?? undefined,
     executionHistory: workflowRun.events.map(mapWorkflowExecutionEventToDomain),
     createdAt: workflowRun.createdAt.toISOString(),
@@ -81,6 +83,7 @@ export function mapWorkflowRunToDomain(workflowRun: WorkflowRunRecord): Workflow
 
 export function mapWorkflowRunStepToDomain(
   step: WorkflowRunRecord["steps"][number] | WorkflowRunListRecord["steps"][number],
+  legacyAssigneeUserId: string,
 ): WorkflowStep {
   const executionResult = mapJsonToWorkflowMetadataObject(step.executionResult);
 
@@ -95,8 +98,16 @@ export function mapWorkflowRunStepToDomain(
     errorMessage: step.errorMessage ?? undefined,
     assignee: step.assigneeType === "USER" && step.assigneeUserId
       ? { type: "user", userId: step.assigneeUserId }
-      : step.assigneeRole ? { type: "role", role: step.assigneeRole.toLowerCase() as "owner" | "admin" | "editor" | "viewer" } : undefined,
+      : step.assigneeRole ? { type: "role", role: step.assigneeRole.toLowerCase() as "owner" | "admin" | "editor" | "viewer" } : { type: "user", userId: legacyAssigneeUserId },
     priority: "normal",
+    transitions: (step.workflowDefinitionStep?.outgoingTransitions ?? []).map((transition) => ({
+      id: transition.id,
+      name: transition.name,
+      description: transition.description ?? undefined,
+      result: transition.result,
+      targetStepId: transition.targetStepId ?? undefined,
+      endsWorkflow: transition.endsWorkflow,
+    })),
   };
 }
 
@@ -207,6 +218,7 @@ export function mapWorkflowStepStatusToPrisma(status: WorkflowStepStatus) {
     running: PrismaWorkflowStepStatus.RUNNING,
     completed: PrismaWorkflowStepStatus.COMPLETED,
     failed: PrismaWorkflowStepStatus.FAILED,
+    skipped: PrismaWorkflowStepStatus.SKIPPED,
   } satisfies Record<WorkflowStepStatus, PrismaWorkflowStepStatus>;
 
   return workflowStepStatusMap[status];
@@ -220,6 +232,7 @@ export function mapWorkflowStepStatusToDomain(
     RUNNING: "running",
     COMPLETED: "completed",
     FAILED: "failed",
+    SKIPPED: "skipped",
   } satisfies Record<PrismaWorkflowStepStatus, WorkflowStepStatus>;
 
   return workflowStepStatusMap[status];

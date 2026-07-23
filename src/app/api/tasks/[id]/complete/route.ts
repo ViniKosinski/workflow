@@ -11,7 +11,9 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     const { id } = await context.params;
     const body = await parseJsonObject(request);
     const message = optionalString(body, "message", 2_000)?.trim();
-    const workflow = await completeTask(createTaskDependencies(user.userId), { taskId: id, message }, user.userId);
+    const selectedResult = optionalString(body, "result", 120)?.trim();
+    const observation = optionalString(body, "observation", 2_000)?.trim();
+    const workflow = await completeTask(createTaskDependencies(user.userId), { taskId: id, message, selectedResult, observation }, user.userId);
     return Response.json({ workflow });
   } catch (error) { return taskErrorResponse(error); }
 }

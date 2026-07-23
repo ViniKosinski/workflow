@@ -6,4 +6,5 @@ export type MembershipRepository = Readonly<{
   create: (membership: OrganizationMembership) => Promise<OrganizationMembership>;
   updateRole: (organizationId: string, userId: string, role: OrganizationRole, updatedAt: string) => Promise<OrganizationMembership>;
   remove: (organizationId: string, userId: string) => Promise<void>;
+  hasActiveTasksAssigned: (organizationId: string, userId: string) => Promise<boolean>;
 }>;

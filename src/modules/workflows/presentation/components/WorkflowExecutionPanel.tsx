@@ -13,6 +13,7 @@ import type {
 } from "@/modules/workflows/presentation/types/workflowViewModels";
 import { WorkflowStatusBadge } from "@/modules/workflows/presentation/components/WorkflowStatusBadge";
 import { Button } from "@/shared/components/ui/Button";
+import Link from "next/link";
 
 type WorkflowExecutionPanelProps = {
   workflow: Workflow;
@@ -112,12 +113,6 @@ export function WorkflowExecutionPanel({ workflow }: WorkflowExecutionPanelProps
 
   const canPrepare = workflow.status === WORKFLOW_STATUSES.draft;
   const canStartExecution = workflow.status === WORKFLOW_STATUSES.ready;
-  const canStartStep =
-    workflow.status === WORKFLOW_STATUSES.running &&
-    currentStep?.status === WORKFLOW_STEP_STATUSES.pending;
-  const canCompleteStep =
-    workflow.status === WORKFLOW_STATUSES.running &&
-    currentStep?.status === WORKFLOW_STEP_STATUSES.running;
   const canFail = workflow.status === WORKFLOW_STATUSES.running;
   const canCancel =
     workflow.status === WORKFLOW_STATUSES.draft ||
@@ -190,32 +185,10 @@ export function WorkflowExecutionPanel({ workflow }: WorkflowExecutionPanelProps
           </Button>
         ) : null}
 
-        {canStartStep && currentStep ? (
-          <Button
-            disabled={isSubmitting}
-            onClick={() =>
-              void runAction(
-                `/api/workflows/${workflow.id}/steps/${currentStep.id}/start`,
-              )
-            }
-            type="button"
-          >
-            Iniciar etapa
-          </Button>
-        ) : null}
-
-        {canCompleteStep && currentStep ? (
-          <Button
-            disabled={isSubmitting}
-            onClick={() =>
-              void runAction(
-                `/api/workflows/${workflow.id}/steps/${currentStep.id}/complete`,
-              )
-            }
-            type="button"
-          >
-            Concluir etapa
-          </Button>
+        {workflow.status === WORKFLOW_STATUSES.running && currentStep ? (
+          <Link className="inline-flex h-10 items-center px-3 text-sm font-semibold text-brand-700" href="/tasks">
+            Executar pela Minha fila
+          </Link>
         ) : null}
 
         {canFail ? (

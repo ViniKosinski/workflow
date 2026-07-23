@@ -30,6 +30,7 @@ export const WORKFLOW_STEP_STATUSES = {
   running: "running",
   completed: "completed",
   failed: "failed",
+  skipped: "skipped",
 } as const;
 
 export type WorkflowStepStatus =
@@ -42,6 +43,7 @@ export const WORKFLOW_STEP_STATUS_LABELS: Readonly<
   running: "Em execução",
   completed: "Concluída",
   failed: "Falhou",
+  skipped: "Ignorada",
 };
 
 export type WorkflowTransition = Readonly<{
@@ -101,6 +103,9 @@ export const WORKFLOW_EVENT_TYPES = {
   workflowStepAdded: "workflow.step_added",
   workflowStepRenamed: "workflow.step_renamed",
   workflowStepAssigned: "workflow.step_assigned",
+  workflowTransitionAdded: "workflow.transition_added",
+  workflowTransitionUpdated: "workflow.transition_updated",
+  workflowTransitionRemoved: "workflow.transition_removed",
   workflowStepRemoved: "workflow.step_removed",
   workflowStepsReordered: "workflow.steps_reordered",
   executionStarted: "execution.started",
@@ -117,6 +122,7 @@ export const WORKFLOW_STEP_EVENT_TYPES = {
   stepStarted: "step.started",
   stepCompleted: "step.completed",
   stepFailed: "step.failed",
+  stepSkipped: "step.skipped",
   stepTransitionBlocked: "step.transition_blocked",
 } as const;
 
@@ -139,6 +145,8 @@ export type WorkflowExecutionMetadata = Readonly<
 >;
 
 export type WorkflowStepCompletionResult = Readonly<{
+  selectedResult?: string;
+  observation?: string;
   message?: string;
   metadata?: WorkflowExecutionMetadata;
 }>;
@@ -157,8 +165,18 @@ export type WorkflowStep = Readonly<{
   startedAt?: IsoDateString;
   finishedAt?: IsoDateString;
   errorMessage?: string;
-  assignee?: StepAssignee;
+  assignee: StepAssignee;
   priority?: "normal";
+  transitions: ReadonlyArray<WorkflowStepTransition>;
+}>;
+
+export type WorkflowStepTransition = Readonly<{
+  id: string;
+  name: string;
+  description?: string;
+  result: string;
+  targetStepId?: WorkflowStepId;
+  endsWorkflow: boolean;
 }>;
 
 export type StepAssignee =
@@ -236,6 +254,15 @@ export type CreateWorkflowInput = Readonly<{
       name: string;
       order: number;
       assignee?: StepAssignee;
+      transitions?: ReadonlyArray<Readonly<{
+        id?: string;
+        name: string;
+        description?: string;
+        result: string;
+        targetStepId?: string;
+        targetStepOrder?: number;
+        endsWorkflow: boolean;
+      }>>;
     }>
   >;
 }>;
@@ -286,6 +313,10 @@ export type CompleteWorkflowStepInput = Readonly<{
   result: WorkflowStepCompletionResult;
   executorUserId?: string;
 }>;
+
+export type AddWorkflowTransitionInput = Readonly<{ workflow: Workflow; stepId: string; transition: Omit<WorkflowStepTransition, "id"> }>;
+export type UpdateWorkflowTransitionInput = Readonly<{ workflow: Workflow; stepId: string; transitionId: string; transition: Omit<WorkflowStepTransition, "id"> }>;
+export type RemoveWorkflowTransitionInput = Readonly<{ workflow: Workflow; stepId: string; transitionId: string }>;
 
 export type RegisterWorkflowFailureInput = Readonly<{
   workflow: Workflow;
@@ -344,6 +375,7 @@ export type WorkflowEngineIdGenerator = Readonly<{
   createWorkflowId: () => WorkflowId;
   createStepId: () => WorkflowStepId;
   createEventId: () => WorkflowExecutionEventId;
+  createTransitionId?: () => string;
 }>;
 
 export type WorkflowEngineDependencies = Readonly<{
@@ -376,6 +408,9 @@ export type WorkflowEngineService = Readonly<{
   completeStep: (
     input: CompleteWorkflowStepInput,
   ) => WorkflowEngineResult<Workflow>;
+  addTransition: (input: AddWorkflowTransitionInput) => WorkflowEngineResult<Workflow>;
+  updateTransition: (input: UpdateWorkflowTransitionInput) => WorkflowEngineResult<Workflow>;
+  removeTransition: (input: RemoveWorkflowTransitionInput) => WorkflowEngineResult<Workflow>;
   registerFailure: (
     input: RegisterWorkflowFailureInput,
   ) => WorkflowEngineResult<Workflow>;
@@ -425,13 +460,18 @@ export function isWorkflowValid(workflow: Workflow) {
   const stepOrders = new Set<number>();
 
   const hasValidSteps = workflow.steps.every((step) => {
+    const hasValidAssignee = Boolean(step.assignee) && (step.assignee.type === "user"
+      ? step.assignee.userId.trim().length > 0
+      : ["owner", "admin", "editor", "viewer"].includes(step.assignee.role));
     const isStepValid =
       step.id.trim().length > 0 &&
       step.name.trim().length > 0 &&
       Number.isInteger(step.order) &&
       step.order > 0 &&
       !stepIds.has(step.id) &&
-      !stepOrders.has(step.order);
+      !stepOrders.has(step.order) &&
+      hasValidAssignee &&
+      step.transitions.length > 0;
 
     stepIds.add(step.id);
     stepOrders.add(step.order);

@@ -29,8 +29,8 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const { dependencies } = await getWorkflowRequestContext(request);
-    const workflow = await createWorkflow(dependencies, await parseCreateWorkflowPayload(request));
+    const { dependencies, user } = await getWorkflowRequestContext(request);
+    const workflow = await createWorkflow(dependencies, await parseCreateWorkflowPayload(request), user.userId);
 
     return workflowJsonResponse({ workflow }, { status: 201 });
   } catch (error) {

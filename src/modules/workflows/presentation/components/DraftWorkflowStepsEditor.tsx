@@ -11,6 +11,7 @@ import type {
   WorkflowApiResponse,
 } from "@/modules/workflows/presentation/types/workflowViewModels";
 import { Button } from "@/shared/components/ui/Button";
+import { WorkflowTransitionsEditor } from "@/modules/workflows/presentation/components/WorkflowTransitionsEditor";
 
 type DraftWorkflowStepsEditorProps = {
   workflow: Workflow;
@@ -220,6 +221,7 @@ export function DraftWorkflowStepsEditor({
                 </button>
               </div>
             </div>
+            <WorkflowTransitionsEditor workflowId={workflow.id} step={step} steps={orderedSteps} />
           </div>
         ))}
       </div>

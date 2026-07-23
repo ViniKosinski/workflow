@@ -56,7 +56,7 @@ integration("workflow authorization with PostgreSQL", () => {
       { organizationId: ownerA, userId: ownerA, role: "OWNER" },
       { organizationId: ownerB, userId: ownerB, role: "OWNER" },
     ] });
-    const created = engine.createWorkflow({ name: "Privado A", steps: [{ name: "Etapa", order: 1 }] });
+    const created = engine.createWorkflow({ name: "Privado A", steps: [{ name: "Etapa", order: 1, assignee: { type: "user", userId: ownerA } }] });
     if (!created.success) throw new Error(created.error.message);
     await repositoryA.save(created.data);
   });

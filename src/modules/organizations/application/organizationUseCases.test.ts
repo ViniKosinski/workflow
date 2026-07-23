@@ -7,7 +7,7 @@ import { addOrganizationMember } from "@/modules/organizations/application/addOr
 import { listOrganizationMembers } from "@/modules/organizations/application/listOrganizationMembers";
 import { removeOrganizationMember } from "@/modules/organizations/application/removeOrganizationMember";
 import type { OrganizationApplicationDependencies } from "@/modules/organizations/application/organizationApplicationTypes";
-import type { OrganizationMembership, OrganizationRole } from "@/modules/organizations/domain/membership";
+import { ActiveTaskAssignmentError, type OrganizationMembership, type OrganizationRole } from "@/modules/organizations/domain/membership";
 import { MembershipConcurrencyError } from "@/modules/organizations/domain/membershipTransaction";
 import { OrganizationNotFoundError } from "@/modules/organizations/application/organizationErrors";
 
@@ -31,6 +31,7 @@ function createDependencies(actorRole: OrganizationRole = "owner") {
         return updated;
       }),
       remove: vi.fn(async (_organizationId, userId) => { memberships.delete(userId); }),
+      hasActiveTasksAssigned: vi.fn(async () => false),
     },
     membershipTransactions: { run: vi.fn(async (work) => work(dependencies.memberships)) },
     users: {
@@ -63,6 +64,14 @@ describe("organization use cases", () => {
     await expect(changeOrganizationMemberRole(dependencies, "actor", "org", "member", { role: "editor" })).resolves.toMatchObject({ role: "editor" });
     await removeOrganizationMember(dependencies, "actor", "org", "member");
     await expect(listOrganizationMembers(dependencies, "actor", "org")).resolves.toHaveLength(1);
+  });
+
+  it("não remove membro com tarefa ativa atribuída", async () => {
+    const { dependencies, memberships } = createDependencies();
+    memberships.set("member", { organizationId: "org", userId: "member", role: "viewer", createdAt: "x", updatedAt: "x" });
+    vi.mocked(dependencies.memberships.hasActiveTasksAssigned).mockResolvedValue(true);
+    await expect(removeOrganizationMember(dependencies, "actor", "org", "member")).rejects.toBeInstanceOf(ActiveTaskAssignmentError);
+    expect(dependencies.memberships.remove).not.toHaveBeenCalled();
   });
 
   it("ADMIN gerencia EDITOR, mas não ADMIN", async () => {

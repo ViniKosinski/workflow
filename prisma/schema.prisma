@@ -131,6 +131,7 @@ enum WorkflowStepStatus {
   RUNNING   @map("running")
   COMPLETED @map("completed")
   FAILED    @map("failed")
+  SKIPPED   @map("skipped")
 
   @@map("workflow_step_status")
 }
@@ -176,11 +177,32 @@ model WorkflowDefinitionStep {
   workflowDefinition   WorkflowDefinition @relation(fields: [workflowDefinitionId], references: [id], onDelete: Cascade)
   assigneeUser         User?              @relation("DefinitionStepAssignee", fields: [assigneeUserId], references: [id], onDelete: Restrict)
   runSteps             WorkflowRunStep[]
+  outgoingTransitions WorkflowDefinitionTransition[] @relation("TransitionSource")
+  incomingTransitions WorkflowDefinitionTransition[] @relation("TransitionTarget")
 
   @@unique([workflowDefinitionId, order])
   @@index([workflowDefinitionId])
   @@index([assigneeUserId])
   @@map("workflow_definition_steps")
+}
+
+model WorkflowDefinitionTransition {
+  id          String   @id @db.VarChar(64)
+  sourceStepId String  @map("source_step_id") @db.VarChar(64)
+  targetStepId String? @map("target_step_id") @db.VarChar(64)
+  name        String   @db.VarChar(160)
+  description String?  @db.Text
+  result      String   @db.VarChar(120)
+  endsWorkflow Boolean @default(false) @map("ends_workflow")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  sourceStep  WorkflowDefinitionStep @relation("TransitionSource", fields: [sourceStepId], references: [id], onDelete: Cascade)
+  targetStep  WorkflowDefinitionStep? @relation("TransitionTarget", fields: [targetStepId], references: [id], onDelete: Restrict)
+
+  @@unique([sourceStepId, result])
+  @@index([sourceStepId])
+  @@index([targetStepId])
+  @@map("workflow_definition_transitions")
 }
 
 model WorkflowRun {

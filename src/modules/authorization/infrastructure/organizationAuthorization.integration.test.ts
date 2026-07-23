@@ -84,8 +84,8 @@ integration("organization authorization with PostgreSQL", () => {
       authorization: guard(users.viewer),
     };
 
-    await expect(createWorkflow(editorDependencies, { name: "Compartilhado", steps: [{ name: "Etapa", order: 1 }] })).resolves.toMatchObject({ name: "Compartilhado" });
+    await expect(createWorkflow(editorDependencies, { name: "Compartilhado", steps: [{ name: "Etapa", order: 1 }] }, users.editor)).resolves.toMatchObject({ name: "Compartilhado" });
     await expect(listPersistedWorkflows(viewerDependencies)).resolves.toHaveLength(1);
-    await expect(createWorkflow(viewerDependencies, { name: "Negado", steps: [{ name: "Etapa", order: 1 }] })).rejects.toBeInstanceOf(AuthorizationDeniedError);
+    await expect(createWorkflow(viewerDependencies, { name: "Negado", steps: [{ name: "Etapa", order: 1 }] }, users.viewer)).rejects.toBeInstanceOf(AuthorizationDeniedError);
   });
 });

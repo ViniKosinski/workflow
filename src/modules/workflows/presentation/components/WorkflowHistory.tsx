@@ -104,6 +104,9 @@ export function WorkflowHistory({ workflow }: WorkflowHistoryProps) {
                 {event.error ? (
                   <p className="mt-1 text-xs text-rose-600">{event.error}</p>
                 ) : null}
+                {typeof event.metadata?.selectedResult === "string" ? <p className="mt-1 text-xs text-slate-600">Resultado: {event.metadata.selectedResult}</p> : null}
+                {typeof event.metadata?.observation === "string" ? <p className="mt-1 text-xs text-slate-600">Observação: {event.metadata.observation}</p> : null}
+                {typeof event.metadata?.workflowEnded === "boolean" ? <p className="mt-1 text-xs text-slate-500">Workflow encerrado: {event.metadata.workflowEnded ? "sim" : "não"}</p> : null}
               </div>
             </div>
           );

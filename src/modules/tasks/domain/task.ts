@@ -14,7 +14,8 @@ export type WorkTask = Readonly<{
   assigneeName: string;
   priority: TaskPriority;
   createdAt: string;
-  status: "pending" | "running";
+  status: "pending" | "running" | "completed" | "failed" | "skipped";
+  outcomes: ReadonlyArray<Readonly<{ result: string; name: string; description?: string }>>;
 }>;
 
 export type TaskHistoryEntry = Readonly<{
@@ -24,6 +25,11 @@ export type TaskHistoryEntry = Readonly<{
   executorUserId?: string;
   executorName?: string;
   transition?: string;
+  selectedResult?: string;
+  sourceStepId?: string;
+  targetStepId?: string;
+  observation?: string;
+  workflowEnded?: boolean;
   message: string;
 }>;
 

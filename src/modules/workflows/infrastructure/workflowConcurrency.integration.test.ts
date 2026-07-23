@@ -27,7 +27,7 @@ integration("workflow optimistic concurrency", () => {
     await prisma.user.create({ data: { id: userId, email: `${userId}@test.invalid`, normalizedEmail: `${userId}@test.invalid`, name: "Concurrency" } });
     await prisma.organization.create({ data: { id: userId, name: "Concurrency" } });
     await prisma.organizationMembership.create({ data: { organizationId: userId, userId, role: "OWNER" } });
-    const created = engine.createWorkflow({ name: "Versioned", steps: [{ name: "Initial", order: 1 }] });
+    const created = engine.createWorkflow({ name: "Versioned", steps: [{ name: "Initial", order: 1, assignee: { type: "user", userId } }] });
     if (!created.success) throw new Error(created.error.message);
     await repository.save(created.data);
   });

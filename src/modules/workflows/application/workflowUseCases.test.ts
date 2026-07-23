@@ -128,7 +128,7 @@ async function createPersistedWorkflow(
       { name: "Solicitar compra", order: 1 },
       { name: "Aprovar compra", order: 2 },
     ],
-  });
+  }, "actor");
 }
 
 describe("workflow application use cases", () => {
@@ -149,7 +149,7 @@ describe("workflow application use cases", () => {
       createWorkflow(dependencies, {
         name: "",
         steps: [],
-      }),
+      }, "actor"),
     ).rejects.toBeInstanceOf(WorkflowValidationError);
 
     expect(repository.calls.save).toBe(0);

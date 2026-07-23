@@ -6,5 +6,6 @@ export type TaskAccess = Readonly<{ task: WorkTask; actorRole: OrganizationRole 
 export type TaskRepository = Readonly<{
   listMine: (userId: string, order: "asc" | "desc") => Promise<ReadonlyArray<WorkTask>>;
   findMine: (taskId: string, userId: string) => Promise<TaskAccess | null>;
-  listHistory: (taskId: string, userId: string) => Promise<ReadonlyArray<TaskHistoryEntry> | null>;
+  findForHistory: (taskId: string, userId: string) => Promise<TaskAccess | null>;
+  listHistory: (taskId: string) => Promise<ReadonlyArray<TaskHistoryEntry>>;
 }>;

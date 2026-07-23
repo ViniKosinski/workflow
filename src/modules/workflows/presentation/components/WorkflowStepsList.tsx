@@ -14,6 +14,7 @@ const stepStatusClassNames = {
   running: "border-brand-300 bg-brand-50",
   completed: "border-emerald-200 bg-emerald-50",
   failed: "border-rose-200 bg-rose-50",
+  skipped: "border-slate-200 bg-slate-50",
 };
 
 const stepNumberClassNames = {
@@ -21,6 +22,7 @@ const stepNumberClassNames = {
   running: "bg-brand-600 text-white",
   completed: "bg-emerald-600 text-white",
   failed: "bg-rose-600 text-white",
+  skipped: "bg-slate-400 text-white",
 };
 
 function getStepHint(workflow: Workflow, step: WorkflowStep) {
@@ -34,6 +36,10 @@ function getStepHint(workflow: Workflow, step: WorkflowStep) {
 
   if (step.status === WORKFLOW_STEP_STATUSES.failed) {
     return "Falhou";
+  }
+
+  if (step.status === WORKFLOW_STEP_STATUSES.skipped) {
+    return "Ignorada pelo caminho escolhido";
   }
 
   return "Próxima etapa";

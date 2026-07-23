@@ -11,6 +11,7 @@ import { ORGANIZATION_PERMISSIONS } from "@/modules/authorization/domain/authori
 export async function createWorkflow(
   dependencies: WorkflowApplicationDependencies,
   input: CreateWorkflowUseCaseInput,
+  actorUserId: string,
 ) {
   await dependencies.authorization.require(ORGANIZATION_PERMISSIONS.workflowCreate);
   if (!input.name.trim()) {
@@ -38,6 +39,7 @@ export async function createWorkflow(
     steps: input.steps.map((step) => ({
       name: step.name.trim(),
       order: step.order,
+      assignee: { type: "user", userId: actorUserId },
     })),
   });
 

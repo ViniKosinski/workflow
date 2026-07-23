@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { AuthorizationDeniedError } from "@/modules/authorization/domain/authorization";
 import { UnauthenticatedError } from "@/modules/auth/application/authErrors";
-import { MembershipDomainError } from "@/modules/organizations/domain/membership";
+import { ActiveTaskAssignmentError, MembershipDomainError } from "@/modules/organizations/domain/membership";
 import { MembershipConcurrencyError } from "@/modules/organizations/domain/membershipTransaction";
 import { OrganizationDomainError } from "@/modules/organizations/domain/organization";
 import {
@@ -26,6 +26,7 @@ export function organizationErrorResponse(error: unknown) {
   }
   if (error instanceof MembershipAlreadyExistsError) return NextResponse.json({ message: error.message }, { status: 409 });
   if (error instanceof MembershipConcurrencyError) return NextResponse.json({ message: error.message }, { status: 409 });
+  if (error instanceof ActiveTaskAssignmentError) return NextResponse.json({ message: error.message }, { status: 409 });
   if (error instanceof MembershipDomainError || error instanceof OrganizationDomainError) {
     return NextResponse.json({ message: error.message }, { status: 400 });
   }

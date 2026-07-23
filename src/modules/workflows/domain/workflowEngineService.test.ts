@@ -51,8 +51,8 @@ function createValidWorkflow(engine: WorkflowEngineService) {
   const result = engine.createWorkflow({
     name: "Aprovação de compras",
     steps: [
-      { name: "Solicitar compra", order: 1 },
-      { name: "Aprovar compra", order: 2 },
+      { name: "Solicitar compra", order: 1, assignee: { type: "user", userId: "user-1" } },
+      { name: "Aprovar compra", order: 2, assignee: { type: "user", userId: "user-1" } },
     ],
   });
 
@@ -134,7 +134,7 @@ describe("WorkflowEngine", () => {
       const engine = createEngine();
       const result = engine.createWorkflow({
         name: "Onboarding de cliente",
-        steps: [{ name: "Criar conta", order: 1 }],
+        steps: [{ name: "Criar conta", order: 1, assignee: { type: "user", userId: "user-1" } }],
       });
 
       expect(result.success).toBe(true);
@@ -165,6 +165,11 @@ describe("WorkflowEngine", () => {
       }
 
       expect(result.error.code).toBe("INVALID_WORKFLOW");
+    });
+
+    it("impede fluxo novo com etapa sem responsável", () => {
+      const result = createEngine().createWorkflow({ name: "Sem responsável", steps: [{ name: "Etapa", order: 1 }] });
+      expect(result.success).toBe(false);
     });
 
     it("valida informações obrigatórias", () => {
@@ -256,7 +261,7 @@ describe("WorkflowEngine", () => {
       const engine = createEngine();
       const createdResult = engine.createWorkflow({
         name: "Fluxo simples",
-        steps: [{ name: "Etapa única", order: 1 }],
+        steps: [{ name: "Etapa única", order: 1, assignee: { type: "user", userId: "user-1" } }],
       });
 
       expect(createdResult.success).toBe(true);
@@ -587,6 +592,41 @@ describe("WorkflowEngine", () => {
   });
 
   describe("conclusão", () => {
+    it("marca como ignoradas as etapas fora do caminho quando uma decisão encerra o workflow", () => {
+      const engine = createEngine();
+      const created = engine.createWorkflow({
+        name: "Decisão comercial",
+        steps: [
+          { id: "analysis", name: "Análise", order: 1, assignee: { type: "user", userId: "user-1" }, transitions: [
+            { id: "approved", name: "Aprovar", result: "approved", targetStepId: "contract", endsWorkflow: false },
+            { id: "denied", name: "Negar", result: "denied", endsWorkflow: true },
+          ] },
+          { id: "contract", name: "Contrato", order: 2, assignee: { type: "user", userId: "user-1" }, transitions: [
+            { id: "signed", name: "Assinar", result: "signed", targetStepId: "finish", endsWorkflow: false },
+          ] },
+          { id: "finish", name: "Finalização", order: 3, assignee: { type: "user", userId: "user-1" }, transitions: [
+            { id: "done", name: "Finalizar", result: "done", endsWorkflow: true },
+          ] },
+        ],
+      });
+      expect(created.success).toBe(true);
+      if (!created.success) throw new Error(created.error.message);
+      const running = startCurrentStep(engine, startWorkflow(engine, prepareWorkflow(engine, created.data)));
+      const completed = engine.completeStep({ workflow: running, stepId: "analysis", executorUserId: "user-1", result: { selectedResult: "denied" } });
+
+      expect(completed.success).toBe(true);
+      if (!completed.success) throw new Error(completed.error.message);
+      expect(completed.data.status).toBe(WORKFLOW_STATUSES.completed);
+      expect(completed.data.steps.map((step) => step.status)).toEqual([
+        WORKFLOW_STEP_STATUSES.completed,
+        WORKFLOW_STEP_STATUSES.skipped,
+        WORKFLOW_STEP_STATUSES.skipped,
+      ]);
+      const skipped = completed.data.executionHistory.filter((event) => event.type === WORKFLOW_STEP_EVENT_TYPES.stepSkipped);
+      expect(skipped).toHaveLength(2);
+      expect(skipped[0]).toMatchObject({ stepId: "contract", fromStatus: "pending", toStatus: "skipped", metadata: { selectedResult: "denied", sourceStepId: "analysis", transition: "denied", executorUserId: "user-1" } });
+    });
+
     it("permite conclusão somente com todas as etapas concluídas", () => {
       const engine = createEngine();
       const workflow = startWorkflow(

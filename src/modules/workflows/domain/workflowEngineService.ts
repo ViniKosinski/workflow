@@ -34,6 +34,7 @@ import {
   isWorkflowTransitionAllowed,
   isWorkflowValid,
 } from "@/modules/workflows/domain/workflowEngine";
+import { WorkflowDecisionEngine } from "@/modules/workflows/domain/workflowDecisionEngine";
 
 type EngineContext = {
   workflowId: WorkflowId;
@@ -43,6 +44,8 @@ type EngineContext = {
 export function createWorkflowEngine(
   dependencies: WorkflowEngineDependencies,
 ): WorkflowEngineService {
+  const decisions = new WorkflowDecisionEngine();
+  const createTransitionId = () => dependencies.idGenerator.createTransitionId?.() ?? crypto.randomUUID();
   const createLifecycleEvent = (
     context: EngineContext,
     event: Omit<WorkflowLifecycleEvent, "id" | "workflowId" | "timestamp">,
@@ -116,22 +119,33 @@ export function createWorkflowEngine(
     executionHistory: [...workflow.executionHistory, event],
   });
 
-  const hasIncompleteSteps = (workflow: Workflow) =>
-    workflow.steps.some((step) => step.status !== WORKFLOW_STEP_STATUSES.completed);
-
   const getCurrentStep = (workflow: Workflow) =>
     workflow.steps.find((step) => step.id === workflow.currentStepId);
-
-  const getNextPendingStep = (workflow: Workflow) =>
-    [...workflow.steps]
-      .sort((firstStep, secondStep) => firstStep.order - secondStep.order)
-      .find((step) => step.status === WORKFLOW_STEP_STATUSES.pending);
 
   const replaceStep = (
     workflow: Workflow,
     stepId: WorkflowStepId,
     update: (step: WorkflowStep) => WorkflowStep,
   ) => workflow.steps.map((step) => (step.id === stepId ? update(step) : step));
+
+  const getReachableStepIds = (workflow: Workflow, startStepId?: WorkflowStepId) => {
+    const reachable = new Set<WorkflowStepId>();
+    const pending = startStepId ? [startStepId] : [];
+
+    while (pending.length > 0) {
+      const currentStepId = pending.pop();
+      if (!currentStepId || reachable.has(currentStepId)) continue;
+      reachable.add(currentStepId);
+      const currentStep = workflow.steps.find((step) => step.id === currentStepId);
+      currentStep?.transitions.forEach((transition) => {
+        if (transition.targetStepId && !reachable.has(transition.targetStepId)) {
+          pending.push(transition.targetStepId);
+        }
+      });
+    }
+
+    return reachable;
+  };
 
   const normalizeStepOrders = (steps: ReadonlyArray<WorkflowStep>) =>
     [...steps]
@@ -169,15 +183,28 @@ export function createWorkflowEngine(
     createWorkflow(input: CreateWorkflowInput) {
       const workflowId = input.id ?? dependencies.idGenerator.createWorkflowId();
       const createdAt = dependencies.clock.now();
-      const steps = [...input.steps]
-        .sort((firstStep, secondStep) => firstStep.order - secondStep.order)
-        .map<WorkflowStep>((step) => ({
-          id: step.id ?? dependencies.idGenerator.createStepId(),
+      const orderedInputs = [...input.steps].sort((firstStep, secondStep) => firstStep.order - secondStep.order);
+      const stepIds = orderedInputs.map((step) => step.id ?? dependencies.idGenerator.createStepId());
+      const steps = orderedInputs.map<WorkflowStep>((step, index) => ({
+          id: stepIds[index],
           name: step.name,
           order: step.order,
           status: WORKFLOW_STEP_STATUSES.pending,
-          assignee: step.assignee,
+          assignee: step.assignee as WorkflowStep["assignee"],
           priority: "normal",
+          transitions: (step.transitions?.length ? step.transitions : [{
+            name: "Concluir",
+            result: "completed",
+            targetStepOrder: index < orderedInputs.length - 1 ? orderedInputs[index + 1].order : undefined,
+            endsWorkflow: index === orderedInputs.length - 1,
+          }]).map((transition) => ({
+            id: transition.id ?? createTransitionId(),
+            name: transition.name,
+            description: transition.description,
+            result: transition.result,
+            targetStepId: transition.targetStepId ?? (transition.targetStepOrder ? stepIds[orderedInputs.findIndex((candidate) => candidate.order === transition.targetStepOrder)] : undefined),
+            endsWorkflow: transition.endsWorkflow,
+          })),
         }));
 
       const event = createLifecycleEvent(
@@ -200,6 +227,9 @@ export function createWorkflowEngine(
         updatedAt: createdAt,
       };
 
+      try { decisions.validate(workflow); } catch {
+        return fail<Workflow>({ code: "INVALID_WORKFLOW", message: "Workflow inválido.", event }, [event]);
+      }
       if (!isWorkflowValid(workflow)) {
         return fail<Workflow>(
           {
@@ -249,6 +279,9 @@ export function createWorkflowEngine(
         name: stepName,
         order: workflow.steps.length + 1,
         status: WORKFLOW_STEP_STATUSES.pending,
+        assignee: workflow.steps[0].assignee,
+        priority: "normal",
+        transitions: [{ id: createTransitionId(), name: "Concluir", result: "completed", endsWorkflow: true }],
       };
       const event = createLifecycleEvent(
         { workflowId: workflow.id },
@@ -261,7 +294,10 @@ export function createWorkflowEngine(
 
       const updatedWorkflow: Workflow = {
         ...workflow,
-        steps: [...workflow.steps, step],
+        steps: [...workflow.steps.map((current, index) => index === workflow.steps.length - 1 ? {
+          ...current,
+          transitions: current.transitions.map((transition) => transition.endsWorkflow ? { ...transition, endsWorkflow: false, targetStepId: step.id } : transition),
+        } : current), step],
         updatedAt: dependencies.clock.now(),
         executionHistory: [...workflow.executionHistory, event],
       };
@@ -370,6 +406,40 @@ export function createWorkflowEngine(
       return succeed(updatedWorkflow, [event]);
     },
 
+    addTransition(input) {
+      const blocked = validateDraftStepChange(input.workflow);
+      if (blocked) return fail({ code: "INVALID_OPERATION", message: "Transições só podem ser alteradas em rascunho.", event: blocked }, [blocked]);
+      const step = input.workflow.steps.find((candidate) => candidate.id === input.stepId);
+      if (!step) return fail({ code: "INVALID_STEP", message: "Etapa não encontrada." }, []);
+      const transition = { ...input.transition, id: createTransitionId() };
+      const event = createLifecycleEvent({ workflowId: input.workflow.id }, { type: WORKFLOW_EVENT_TYPES.workflowTransitionAdded, message: "Transição adicionada.", metadata: { stepId: step.id, transitionId: transition.id } });
+      const updated: Workflow = { ...input.workflow, updatedAt: dependencies.clock.now(), steps: replaceStep(input.workflow, step.id, (current) => ({ ...current, transitions: [...current.transitions, transition] })), executionHistory: [...input.workflow.executionHistory, event] };
+      try { decisions.validate(updated); } catch (error) { return fail({ code: "INVALID_WORKFLOW", message: error instanceof Error ? error.message : "Workflow inválido.", event }, [event]); }
+      return succeed(updated, [event]);
+    },
+
+    updateTransition(input) {
+      const blocked = validateDraftStepChange(input.workflow);
+      if (blocked) return fail({ code: "INVALID_OPERATION", message: "Transições só podem ser alteradas em rascunho.", event: blocked }, [blocked]);
+      const step = input.workflow.steps.find((candidate) => candidate.id === input.stepId);
+      if (!step?.transitions.some((item) => item.id === input.transitionId)) return fail({ code: "INVALID_STEP", message: "Transição não encontrada." }, []);
+      const event = createLifecycleEvent({ workflowId: input.workflow.id }, { type: WORKFLOW_EVENT_TYPES.workflowTransitionUpdated, message: "Transição atualizada.", metadata: { stepId: step.id, transitionId: input.transitionId } });
+      const updated: Workflow = { ...input.workflow, updatedAt: dependencies.clock.now(), steps: replaceStep(input.workflow, step.id, (current) => ({ ...current, transitions: current.transitions.map((item) => item.id === input.transitionId ? { ...input.transition, id: item.id } : item) })), executionHistory: [...input.workflow.executionHistory, event] };
+      try { decisions.validate(updated); } catch (error) { return fail({ code: "INVALID_WORKFLOW", message: error instanceof Error ? error.message : "Workflow inválido.", event }, [event]); }
+      return succeed(updated, [event]);
+    },
+
+    removeTransition(input) {
+      const blocked = validateDraftStepChange(input.workflow);
+      if (blocked) return fail({ code: "INVALID_OPERATION", message: "Transições só podem ser alteradas em rascunho.", event: blocked }, [blocked]);
+      const step = input.workflow.steps.find((candidate) => candidate.id === input.stepId);
+      if (!step?.transitions.some((item) => item.id === input.transitionId)) return fail({ code: "INVALID_STEP", message: "Transição não encontrada." }, []);
+      const event = createLifecycleEvent({ workflowId: input.workflow.id }, { type: WORKFLOW_EVENT_TYPES.workflowTransitionRemoved, message: "Transição removida.", metadata: { stepId: step.id, transitionId: input.transitionId } });
+      const updated: Workflow = { ...input.workflow, updatedAt: dependencies.clock.now(), steps: replaceStep(input.workflow, step.id, (current) => ({ ...current, transitions: current.transitions.filter((item) => item.id !== input.transitionId) })), executionHistory: [...input.workflow.executionHistory, event] };
+      try { decisions.validate(updated); } catch (error) { return fail({ code: "INVALID_WORKFLOW", message: error instanceof Error ? error.message : "Workflow inválido.", event }, [event]); }
+      return succeed(updated, [event]);
+    },
+
     removeStep(input: RemoveWorkflowStepInput) {
       const { workflow, stepId } = input;
       const blockedEvent = validateDraftStepChange(workflow);
@@ -424,15 +494,26 @@ export function createWorkflowEngine(
           metadata: { stepId, stepName: step.name },
         },
       );
+      const removedExit = step.transitions.length === 1 ? step.transitions[0] : undefined;
+      if (!removedExit && workflow.steps.some((candidate) => candidate.transitions.some((transition) => transition.targetStepId === stepId))) {
+        const blocked = blockStepChange(workflow, "Etapa com múltiplas saídas não pode ser removida enquanto possuir entradas.");
+        return fail({ code: "INVALID_OPERATION", message: blocked.message, event: blocked }, [blocked]);
+      }
       const updatedWorkflow: Workflow = {
         ...workflow,
         updatedAt: dependencies.clock.now(),
-        steps: normalizeStepOrders(
-          workflow.steps.filter((candidate) => candidate.id !== stepId),
-        ),
+        steps: normalizeStepOrders(workflow.steps.filter((candidate) => candidate.id !== stepId).map((candidate) => ({
+          ...candidate,
+          transitions: candidate.transitions.map((transition) => transition.targetStepId === stepId && removedExit ? {
+            ...transition,
+            targetStepId: removedExit.targetStepId,
+            endsWorkflow: removedExit.endsWorkflow,
+          } : transition),
+        }))),
         executionHistory: [...workflow.executionHistory, event],
       };
 
+      try { decisions.validate(updatedWorkflow); } catch { return fail({ code: "INVALID_WORKFLOW", message: "Workflow inválido.", event }, [event]); }
       if (!isWorkflowValid(updatedWorkflow)) {
         return fail<Workflow>(
           {
@@ -520,8 +601,10 @@ export function createWorkflowEngine(
 
     prepareWorkflow(input: PrepareWorkflowInput) {
       const { workflow } = input;
+      let hasValidDecisions = true;
+      try { decisions.validate(workflow); } catch { hasValidDecisions = false; }
 
-      if (!isWorkflowValid(workflow)) {
+      if (!isWorkflowValid(workflow) || !hasValidDecisions) {
         const event = blockWorkflowTransition(
           workflow,
           WORKFLOW_STATUSES.ready,
@@ -591,7 +674,8 @@ export function createWorkflowEngine(
         );
       }
 
-      const firstStep = getNextPendingStep(workflow);
+      let firstStep;
+      try { firstStep = decisions.validate(workflow); } catch { firstStep = undefined; }
 
       if (!firstStep) {
         const event = blockWorkflowTransition(
@@ -733,6 +817,13 @@ export function createWorkflowEngine(
         );
       }
 
+      let selectedTransition;
+      try { selectedTransition = decisions.resolve(step, result.selectedResult); }
+      catch (error) {
+        const event = createStepEvent({ workflowId: workflow.id, stepId }, { type: WORKFLOW_STEP_EVENT_TYPES.stepTransitionBlocked, fromStatus: step.status, message: error instanceof Error ? error.message : "Resultado inválido." });
+        return fail({ code: "INVALID_TRANSITION", message: event.message, event }, [event]);
+      }
+
       const stepEvent = createStepEvent(
         { workflowId: workflow.id, stepId },
         {
@@ -740,7 +831,15 @@ export function createWorkflowEngine(
           fromStatus: step.status,
           toStatus: WORKFLOW_STEP_STATUSES.completed,
           message: "Etapa concluída.",
-          metadata: { ...result.metadata, ...(input.executorUserId ? { executorUserId: input.executorUserId, transition: "step.completed" } : {}) },
+          metadata: {
+            ...result.metadata,
+            selectedResult: selectedTransition.result,
+            sourceStepId: step.id,
+            targetStepId: selectedTransition.targetStepId ?? null,
+            observation: result.observation ?? null,
+            workflowEnded: selectedTransition.endsWorkflow,
+            ...(input.executorUserId ? { executorUserId: input.executorUserId, transition: selectedTransition.id } : {}),
+          },
         },
       );
 
@@ -756,28 +855,70 @@ export function createWorkflowEngine(
         executionHistory: [...workflow.executionHistory, stepEvent],
       };
 
-      const nextStep = getNextPendingStep(workflowWithCompletedStep);
+      const reachableStepIds = getReachableStepIds(
+        workflowWithCompletedStep,
+        selectedTransition.targetStepId,
+      );
+      const skippedAt = dependencies.clock.now();
+      const skippedEvents = workflowWithCompletedStep.steps
+        .filter(
+          (candidate) =>
+            candidate.status === WORKFLOW_STEP_STATUSES.pending &&
+            !reachableStepIds.has(candidate.id),
+        )
+        .map((candidate) => createStepEvent(
+          { workflowId: workflow.id, stepId: candidate.id },
+          {
+            type: WORKFLOW_STEP_EVENT_TYPES.stepSkipped,
+            fromStatus: WORKFLOW_STEP_STATUSES.pending,
+            toStatus: WORKFLOW_STEP_STATUSES.skipped,
+            message: "Etapa ignorada pelo caminho escolhido.",
+            metadata: {
+              selectedResult: selectedTransition.result,
+              sourceStepId: step.id,
+              transition: selectedTransition.id,
+              executorUserId: input.executorUserId ?? null,
+              reason: selectedTransition.endsWorkflow
+                ? `A decisão ${selectedTransition.result} encerrou o workflow.`
+                : `A decisão ${selectedTransition.result} selecionou outro caminho.`,
+            },
+          },
+        ));
+      const workflowWithSkippedSteps: Workflow = {
+        ...workflowWithCompletedStep,
+        steps: workflowWithCompletedStep.steps.map((candidate) =>
+          candidate.status === WORKFLOW_STEP_STATUSES.pending &&
+          !reachableStepIds.has(candidate.id)
+            ? { ...candidate, status: WORKFLOW_STEP_STATUSES.skipped, finishedAt: skippedAt }
+            : candidate,
+        ),
+        executionHistory: [...workflowWithCompletedStep.executionHistory, ...skippedEvents],
+      };
+
+      const nextStep = selectedTransition.targetStepId
+        ? workflowWithSkippedSteps.steps.find((candidate) => candidate.id === selectedTransition.targetStepId)
+        : undefined;
 
       if (nextStep) {
         const updatedWorkflow: Workflow = {
-          ...workflowWithCompletedStep,
+          ...workflowWithSkippedSteps,
           currentStepId: nextStep.id,
         };
 
-        return succeed(updatedWorkflow, [stepEvent]);
+        return succeed(updatedWorkflow, [stepEvent, ...skippedEvents]);
       }
 
-      if (hasIncompleteSteps(workflowWithCompletedStep)) {
+      if (!selectedTransition.endsWorkflow || !nextStep && !selectedTransition.endsWorkflow) {
         const event = blockWorkflowTransition(
-          workflowWithCompletedStep,
+          workflowWithSkippedSteps,
           WORKFLOW_STATUSES.completed,
-          "Workflow possui etapas pendentes.",
+          "A transição não possui uma etapa destino válida.",
         );
 
         return fail<Workflow>(
           {
             code: "INVALID_WORKFLOW",
-            message: "Workflow possui etapas pendentes.",
+            message: "A transição não possui uma etapa destino válida.",
             event,
           },
           [event],
@@ -797,7 +938,7 @@ export function createWorkflowEngine(
       return succeed(
         transitionWorkflow(
           {
-            ...workflowWithCompletedStep,
+            ...workflowWithSkippedSteps,
             currentStepId: undefined,
           },
           WORKFLOW_STATUSES.completed,
@@ -806,7 +947,7 @@ export function createWorkflowEngine(
             finishedAt: dependencies.clock.now(),
           },
         ),
-        [stepEvent, workflowEvent],
+        [stepEvent, ...skippedEvents, workflowEvent],
       );
     },
 

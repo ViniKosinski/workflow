@@ -26,12 +26,12 @@ export class PrismaWorkflowPersistenceRepository
 {
   constructor(
     private readonly organizationId: string,
-    private readonly prisma: PrismaClient = prismaClient,
+    private readonly prisma: PrismaClient | Prisma.TransactionClient = prismaClient,
     private readonly createdByUserId: string = organizationId,
   ) {}
 
   async save(workflow: Workflow) {
-    await this.prisma.$transaction(async (transaction) => {
+    await this.inTransaction(async (transaction) => {
       const existing = await transaction.workflowDefinition.findUnique({
         where: { id: workflow.id },
         select: { id: true },
@@ -83,7 +83,7 @@ export class PrismaWorkflowPersistenceRepository
   }
 
   async update(workflow: Workflow) {
-    await this.prisma.$transaction(async (transaction) => {
+    await this.inTransaction(async (transaction) => {
       const ownedWorkflow = await transaction.workflowRun.findFirst({
         where: {
           id: workflow.id,
@@ -167,14 +167,17 @@ export class PrismaWorkflowPersistenceRepository
         order: step.order,
         createdAt: mapIsoDateToDate(workflow.createdAt),
         updatedAt: mapIsoDateToDate(workflow.updatedAt),
-        assigneeType: step.assignee?.type === "role" ? "ROLE" as const : "USER" as const,
-        assigneeUserId: step.assignee?.type === "user" ? step.assignee.userId : this.createdByUserId,
-        assigneeRole: step.assignee?.type === "role" ? step.assignee.role.toUpperCase() as "OWNER" | "ADMIN" | "EDITOR" | "VIEWER" : null,
+        assigneeType: step.assignee.type === "role" ? "ROLE" as const : "USER" as const,
+        assigneeUserId: step.assignee.type === "user" ? step.assignee.userId : null,
+        assigneeRole: step.assignee.type === "role" ? step.assignee.role.toUpperCase() as "OWNER" | "ADMIN" | "EDITOR" | "VIEWER" : null,
         priority: "NORMAL" as const,
     }));
     if (operation === "create") {
       await transaction.workflowDefinitionStep.createMany({ data: definitionSteps });
     } else {
+      await transaction.workflowDefinitionTransition.deleteMany({
+        where: { sourceStep: { workflowDefinitionId: workflow.id } },
+      });
       await transaction.workflowDefinitionStep.updateMany({
         where: { workflowDefinitionId: workflow.id },
         data: { order: { increment: 1_000 } },
@@ -194,6 +197,20 @@ export class PrismaWorkflowPersistenceRepository
         where: { workflowDefinitionId: workflow.id, id: { notIn: definitionSteps.map((step) => step.id) } },
       });
     }
+
+    await transaction.workflowDefinitionTransition.createMany({
+      data: workflow.steps.flatMap((step) => step.transitions.map((transition) => ({
+        id: transition.id,
+        sourceStepId: step.id,
+        targetStepId: transition.targetStepId,
+        name: transition.name,
+        description: transition.description,
+        result: transition.result,
+        endsWorkflow: transition.endsWorkflow,
+        createdAt: mapIsoDateToDate(workflow.createdAt),
+        updatedAt: mapIsoDateToDate(workflow.updatedAt),
+      }))),
+    });
 
     const runData = {
         id: workflow.id,
@@ -238,9 +255,9 @@ export class PrismaWorkflowPersistenceRepository
         errorMessage: step.errorMessage,
         createdAt: mapIsoDateToDate(workflow.createdAt),
         updatedAt: mapIsoDateToDate(workflow.updatedAt),
-        assigneeType: step.assignee?.type === "role" ? "ROLE" as const : "USER" as const,
-        assigneeUserId: step.assignee?.type === "user" ? step.assignee.userId : this.createdByUserId,
-        assigneeRole: step.assignee?.type === "role" ? step.assignee.role.toUpperCase() as "OWNER" | "ADMIN" | "EDITOR" | "VIEWER" : null,
+        assigneeType: step.assignee.type === "role" ? "ROLE" as const : "USER" as const,
+        assigneeUserId: step.assignee.type === "user" ? step.assignee.userId : null,
+        assigneeRole: step.assignee.type === "role" ? step.assignee.role.toUpperCase() as "OWNER" | "ADMIN" | "EDITOR" | "VIEWER" : null,
         priority: "NORMAL" as const,
     }));
     if (operation === "create") {
@@ -295,6 +312,13 @@ export class PrismaWorkflowPersistenceRepository
       ),
       skipDuplicates: true,
     });
+  }
+
+  private inTransaction<T>(work: (transaction: PrismaTransaction) => Promise<T>) {
+    if ("$transaction" in this.prisma) {
+      return (this.prisma as PrismaClient).$transaction(work);
+    }
+    return work(this.prisma as PrismaTransaction);
   }
 }
 

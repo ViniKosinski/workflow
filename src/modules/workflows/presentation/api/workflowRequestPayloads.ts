@@ -42,7 +42,7 @@ export async function parseFailurePayload(request: Request) {
 
 export async function parseCompletionPayload(request: Request) {
   const body = await parseJsonObject(request);
-  return { message: optionalString(body, "message", 2_000) ?? "Etapa concluída." };
+  return { message: optionalString(body, "message", 2_000) ?? "Etapa concluída.", result: optionalString(body, "result", 120), observation: optionalString(body, "observation", 2_000) };
 }
 
 export async function parseReorderPayload(request: Request) {

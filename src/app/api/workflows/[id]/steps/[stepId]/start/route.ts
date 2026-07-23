@@ -1,9 +1,8 @@
-import { startPersistedWorkflowStep } from "@/modules/workflows/application/startPersistedWorkflowStep";
-import {
-  workflowErrorResponse,
-  workflowJsonResponse,
-} from "@/modules/workflows/presentation/api/workflowApiResponses";
-import { getWorkflowRequestContext } from "@/app/api/workflows/_workflowRequest";
+import { startTask } from "@/modules/tasks/application/startTask";
+import { createTaskDependencies } from "@/modules/tasks/taskDependencies";
+import { taskErrorResponse } from "@/modules/tasks/presentation/api/taskApiResponses";
+import { resolveAuthenticatedUser } from "@/modules/auth/presentation/server/authenticatedUser";
+import { validateMutationRequest } from "@/shared/presentation/api/httpRequest";
 
 type WorkflowStepRouteContext = {
   params: Promise<{
@@ -18,16 +17,12 @@ export async function POST(
 ) {
   try {
     const { id, stepId } = await context.params;
-    const workflow = await startPersistedWorkflowStep(
-      (await getWorkflowRequestContext(_request)).dependencies,
-      {
-        workflowId: id,
-        stepId,
-      },
-    );
+    validateMutationRequest(_request);
+    const user = await resolveAuthenticatedUser();
+    const workflow = await startTask(createTaskDependencies(user.userId), stepId, user.userId, id);
 
-    return workflowJsonResponse({ workflow });
+    return Response.json({ workflow });
   } catch (error) {
-    return workflowErrorResponse(error);
+    return taskErrorResponse(error);
   }
 }

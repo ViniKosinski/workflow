@@ -1,9 +1,8 @@
-import { completePersistedWorkflowStep } from "@/modules/workflows/application/completePersistedWorkflowStep";
-import {
-  workflowErrorResponse,
-  workflowJsonResponse,
-} from "@/modules/workflows/presentation/api/workflowApiResponses";
-import { getWorkflowRequestContext } from "@/app/api/workflows/_workflowRequest";
+import { completeTask } from "@/modules/tasks/application/completeTask";
+import { createTaskDependencies } from "@/modules/tasks/taskDependencies";
+import { taskErrorResponse } from "@/modules/tasks/presentation/api/taskApiResponses";
+import { resolveAuthenticatedUser } from "@/modules/auth/presentation/server/authenticatedUser";
+import { validateMutationRequest } from "@/shared/presentation/api/httpRequest";
 import { parseCompletionPayload } from "@/modules/workflows/presentation/api/workflowRequestPayloads";
 
 type WorkflowStepRouteContext = {
@@ -19,21 +18,13 @@ export async function POST(
 ) {
   try {
     const { id, stepId } = await context.params;
-    const { dependencies } = await getWorkflowRequestContext(request);
+    validateMutationRequest(request);
+    const user = await resolveAuthenticatedUser();
     const body = await parseCompletionPayload(request);
-    const workflow = await completePersistedWorkflowStep(
-      dependencies,
-      {
-        workflowId: id,
-        stepId,
-        result: {
-          message: body.message,
-        },
-      },
-    );
+    const workflow = await completeTask(createTaskDependencies(user.userId), { taskId: stepId, expectedWorkflowId: id, message: body.message, selectedResult: body.result, observation: body.observation }, user.userId);
 
-    return workflowJsonResponse({ workflow });
+    return Response.json({ workflow });
   } catch (error) {
-    return workflowErrorResponse(error);
+    return taskErrorResponse(error);
   }
 }

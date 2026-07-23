@@ -86,4 +86,17 @@ export class PrismaMembershipRepository implements MembershipRepository {
       where: { organizationId_userId: { organizationId, userId } },
     });
   }
+
+  async hasActiveTasksAssigned(organizationId: string, userId: string) {
+    const task = await this.prisma.workflowRunStep.findFirst({
+      where: {
+        assigneeType: "USER",
+        assigneeUserId: userId,
+        status: { in: ["PENDING", "RUNNING"] },
+        currentForRun: { is: { status: "RUNNING", workflowDefinition: { organizationId } } },
+      },
+      select: { id: true },
+    });
+    return Boolean(task);
+  }
 }

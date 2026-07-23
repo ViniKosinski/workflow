@@ -35,3 +35,10 @@ export class MembershipDomainError extends Error {
     this.name = "MembershipDomainError";
   }
 }
+
+export class ActiveTaskAssignmentError extends Error {
+  constructor() {
+    super("O membro possui tarefas ativas. Reatribua-as antes de removê-lo.");
+    this.name = "ActiveTaskAssignmentError";
+  }
+}
