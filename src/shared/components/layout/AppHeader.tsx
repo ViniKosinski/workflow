@@ -16,6 +16,7 @@ export function AppHeader({ userName, logoutControl }: Readonly<{ userName: stri
           <OrganizationSwitcher />
           <Link href="/">Painel</Link>
           <Link href="/workflows">Fluxos</Link>
+          <Link href="/workflow-definitions">Definições</Link>
           <Link href="/tasks">Minha fila</Link>
           <Link href="/organizations">Organizações</Link>
           <Link href="/workflows/new">Novo fluxo</Link>

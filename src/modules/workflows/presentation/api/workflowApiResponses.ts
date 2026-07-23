@@ -10,6 +10,11 @@ import {
 import { WorkflowConcurrencyError } from "@/modules/workflows/domain/workflowPersistenceRepository";
 import { HttpRequestError } from "@/shared/presentation/api/httpRequest";
 import { logServerError } from "@/shared/infrastructure/observability/logServerError";
+import {
+  WorkflowDefinitionConcurrencyError,
+  WorkflowDefinitionNotFoundError,
+} from "@/modules/workflowDefinitions/domain/workflowDefinitionRepository";
+import { WorkflowDefinitionError } from "@/modules/workflowDefinitions/domain/workflowDefinition";
 
 export function workflowJsonResponse(data: unknown, init?: ResponseInit) {
   return NextResponse.json(data, init);
@@ -37,6 +42,15 @@ export function workflowErrorResponse(error: unknown) {
   }
 
   if (error instanceof WorkflowBusinessError) {
+    return NextResponse.json({ message: error.message }, { status: 409 });
+  }
+  if (error instanceof WorkflowDefinitionNotFoundError) {
+    return NextResponse.json({ message: error.message }, { status: 404 });
+  }
+  if (error instanceof WorkflowDefinitionError) {
+    return NextResponse.json({ message: error.message }, { status: 409 });
+  }
+  if (error instanceof WorkflowDefinitionConcurrencyError) {
     return NextResponse.json({ message: error.message }, { status: 409 });
   }
   if (error instanceof WorkflowConcurrencyError) {

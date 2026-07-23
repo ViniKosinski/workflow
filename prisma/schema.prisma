@@ -45,6 +45,8 @@ model User {
   sessions        AuthSession[]
   memberships     OrganizationMembership[]
   createdWorkflows WorkflowDefinition[]
+  publishedWorkflowDefinitions WorkflowDefinition[] @relation("PublishedWorkflowDefinitions")
+  startedWorkflowRuns WorkflowRun[] @relation("StartedWorkflowRuns")
   assignedDefinitionSteps WorkflowDefinitionStep[] @relation("DefinitionStepAssignee")
   assignedRunSteps WorkflowRunStep[] @relation("RunStepAssignee")
 
@@ -143,10 +145,23 @@ enum WorkflowEventScope {
   @@map("workflow_event_scope")
 }
 
+enum WorkflowDefinitionStatus {
+  DRAFT     @map("draft")
+  PUBLISHED @map("published")
+  ARCHIVED  @map("archived")
+
+  @@map("workflow_definition_status")
+}
+
 model WorkflowDefinition {
   id              String    @id @db.VarChar(64)
   organizationId  String    @map("organization_id") @db.VarChar(64)
   createdByUserId String    @map("created_by_user_id") @db.VarChar(64)
+  definitionKey   String    @default(uuid()) @map("definition_key") @db.VarChar(64)
+  revisionNumber  Int       @default(1) @map("revision_number")
+  status          WorkflowDefinitionStatus @default(DRAFT)
+  publishedAt     DateTime? @map("published_at") @db.Timestamptz(6)
+  publishedByUserId String? @map("published_by_user_id") @db.VarChar(64)
   name            String    @db.VarChar(255)
   createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
@@ -155,10 +170,13 @@ model WorkflowDefinition {
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   createdBy    User         @relation(fields: [createdByUserId], references: [id], onDelete: Restrict)
+  publishedBy  User?        @relation("PublishedWorkflowDefinitions", fields: [publishedByUserId], references: [id], onDelete: Restrict)
   steps WorkflowDefinitionStep[]
   runs  WorkflowRun[]
 
   @@index([organizationId, createdAt])
+  @@index([organizationId, status, updatedAt])
+  @@unique([organizationId, definitionKey, revisionNumber])
   @@index([createdByUserId])
   @@map("workflow_definitions")
 }
@@ -214,15 +232,20 @@ model WorkflowRun {
   finishedAt           DateTime?      @map("finished_at") @db.Timestamptz(6)
   failureReason        String?        @map("failure_reason") @db.Text
   cancellationReason   String?        @map("cancellation_reason") @db.Text
+  version              Int            @default(1)
+  startedByUserId      String?        @map("started_by_user_id") @db.VarChar(64)
   createdAt            DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt            DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   workflowDefinition WorkflowDefinition       @relation(fields: [workflowDefinitionId], references: [id], onDelete: Restrict)
+  startedBy          User?                    @relation("StartedWorkflowRuns", fields: [startedByUserId], references: [id], onDelete: Restrict)
   currentStep        WorkflowRunStep?         @relation("CurrentWorkflowRunStep", fields: [currentStepId], references: [id], onDelete: SetNull)
   steps              WorkflowRunStep[]        @relation("WorkflowRunSteps")
   events             WorkflowExecutionEvent[]
 
   @@index([workflowDefinitionId])
+  @@index([workflowDefinitionId, status, createdAt])
+  @@index([startedByUserId])
   @@index([workflowDefinitionId, createdAt])
   @@index([status])
   @@map("workflow_runs")

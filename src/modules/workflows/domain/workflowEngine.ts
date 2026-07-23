@@ -231,6 +231,8 @@ export type WorkflowExecutionEvent =
 
 export type Workflow = Readonly<{
   id: WorkflowId;
+  definitionId?: string;
+  definitionRevision?: number;
   version: number;
   name: string;
   status: WorkflowStatus;

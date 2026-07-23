@@ -3,7 +3,7 @@ import type { TaskTransactionManager } from "@/modules/tasks/domain/taskTransact
 import { PrismaTaskRepository } from "@/modules/tasks/infrastructure/prismaTaskRepository";
 import { createWorkflowEngine } from "@/modules/workflows/domain/workflowEngineService";
 import { WorkflowConcurrencyError } from "@/modules/workflows/domain/workflowPersistenceRepository";
-import { PrismaWorkflowPersistenceRepository } from "@/modules/workflows/infrastructure/prismaWorkflowPersistenceRepository";
+import { PrismaWorkflowRunRepository } from "@/modules/workflowDefinitions/infrastructure/prismaWorkflowRunRepository";
 import { prismaClient } from "@/shared/infrastructure/database/prismaClient";
 
 export class PrismaTaskTransactionManager implements TaskTransactionManager {
@@ -22,7 +22,7 @@ export class PrismaTaskTransactionManager implements TaskTransactionManager {
               createEventId: () => crypto.randomUUID(),
             },
           }),
-          repository: new PrismaWorkflowPersistenceRepository(organizationId, transaction, this.actorUserId),
+          repository: new PrismaWorkflowRunRepository(organizationId, transaction),
         }),
       }), { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }) as T;
     } catch (error) {

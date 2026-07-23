@@ -15,6 +15,7 @@ import { createTaskDependencies } from "@/modules/tasks/taskDependencies";
 import { createWorkflowEngine } from "@/modules/workflows/domain/workflowEngineService";
 import { WorkflowConcurrencyError } from "@/modules/workflows/domain/workflowPersistenceRepository";
 import { PrismaWorkflowPersistenceRepository } from "@/modules/workflows/infrastructure/prismaWorkflowPersistenceRepository";
+import { PrismaWorkflowRunRepository } from "@/modules/workflowDefinitions/infrastructure/prismaWorkflowRunRepository";
 
 const databaseUrl = process.env.TEST_DATABASE_URL;
 const integration = describe.skipIf(!databaseUrl);
@@ -136,7 +137,8 @@ integration("conditional task completion", () => {
     expect(run.steps.find((step) => step.id === ids.analysisId)).toMatchObject({ status: "COMPLETED", executionResult: { selectedResult: "approved", observation: "Decisão integrada" } });
     expect(run.steps.find((step) => step.id === ids.approvedId)?.status).toBe("PENDING");
     expect(run.events.filter((event) => event.eventType === "step.completed")).toHaveLength(1);
-    expect(run.workflowDefinition.version).toBe(2);
+    expect(run.version).toBe(2);
+    expect(run.workflowDefinition.version).toBe(1);
   });
 
   it("marca imediatamente o ramo reprovado como SKIPPED ao escolher APROVADO", async () => {
@@ -194,7 +196,8 @@ integration("conditional task completion", () => {
     const skippedEvents = run.events.filter((event) => event.eventType === "step.skipped");
     expect(skippedEvents).toHaveLength(2);
     expect(skippedEvents[0].metadata).toMatchObject({ selectedResult: "rejected", sourceStepId: ids.analysisId, executorUserId: actorA });
-    expect(run.workflowDefinition.version).toBe(2);
+    expect(run.version).toBe(2);
+    expect(run.workflowDefinition.version).toBe(1);
   });
 
   it("aceita uma só decisão concorrente e retorna conflito conhecido para a perdedora", async () => {
@@ -202,7 +205,7 @@ integration("conditional task completion", () => {
     let readers = 0;
     let releaseReaders!: () => void;
     const readersReady = new Promise<void>((resolve) => { releaseReaders = resolve; });
-    const synchronizedTransactions = (actorUserId: string): TaskTransactionManager => ({
+    const synchronizedTransactions = (): TaskTransactionManager => ({
       run: async (work) => {
         try {
           return await prisma.$transaction(async (transaction) => {
@@ -220,7 +223,7 @@ integration("conditional task completion", () => {
                   return access;
                 },
               },
-              workflow: (currentOrganizationId) => ({ engine: engine(), repository: new PrismaWorkflowPersistenceRepository(currentOrganizationId, transaction, actorUserId) }),
+              workflow: (currentOrganizationId) => ({ engine: engine(), repository: new PrismaWorkflowRunRepository(currentOrganizationId, transaction) }),
             });
           }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
         } catch (error) {
@@ -230,15 +233,16 @@ integration("conditional task completion", () => {
       },
     });
     const results = await Promise.allSettled([
-      completeTask({ ...createTaskDependencies(actorA), transactions: synchronizedTransactions(actorA) }, { taskId: ids.analysisId, selectedResult: "approved" }, actorA),
-      completeTask({ ...createTaskDependencies(actorB), transactions: synchronizedTransactions(actorB) }, { taskId: ids.analysisId, selectedResult: "rejected" }, actorB),
+      completeTask({ ...createTaskDependencies(actorA), transactions: synchronizedTransactions() }, { taskId: ids.analysisId, selectedResult: "approved" }, actorA),
+      completeTask({ ...createTaskDependencies(actorB), transactions: synchronizedTransactions() }, { taskId: ids.analysisId, selectedResult: "rejected" }, actorB),
     ]);
     expect(results.filter((result) => result.status === "fulfilled")).toHaveLength(1);
     const rejected = results.find((result): result is PromiseRejectedResult => result.status === "rejected");
     expect(rejected?.reason).toBeInstanceOf(WorkflowConcurrencyError);
     const run = await prisma.workflowRun.findUniqueOrThrow({ where: { id: ids.workflowId }, include: { steps: true, events: true, workflowDefinition: true } });
     expect(run.events.filter((event) => event.eventType === "step.completed")).toHaveLength(1);
-    expect(run.workflowDefinition.version).toBe(2);
+    expect(run.version).toBe(2);
+    expect(run.workflowDefinition.version).toBe(1);
     const completion = run.events.find((event) => event.eventType === "step.completed")!;
     const metadata = completion.metadata as { selectedResult: string };
     expect(["approved", "rejected"]).toContain(metadata.selectedResult);
@@ -251,7 +255,7 @@ integration("conditional task completion", () => {
       run: async (work) => prisma.$transaction(async (transaction) => {
         await work({
           tasks: new PrismaTaskRepository(transaction),
-          workflow: (currentOrganizationId) => ({ engine: engine(), repository: new PrismaWorkflowPersistenceRepository(currentOrganizationId, transaction, actorA) }),
+          workflow: (currentOrganizationId) => ({ engine: engine(), repository: new PrismaWorkflowRunRepository(currentOrganizationId, transaction) }),
         });
         throw new Error("forced rollback");
       }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }),
@@ -263,6 +267,7 @@ integration("conditional task completion", () => {
     expect(run.steps.find((step) => step.id === ids.analysisId)?.status).toBe("PENDING");
     expect(run.steps.some((step) => step.status === "SKIPPED")).toBe(false);
     expect(run.events.some((event) => ["step.completed", "step.skipped", "workflow.completed"].includes(event.eventType))).toBe(false);
+    expect(run.version).toBe(1);
     expect(run.workflowDefinition.version).toBe(1);
   });
 

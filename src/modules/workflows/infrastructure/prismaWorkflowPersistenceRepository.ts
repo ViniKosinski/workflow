@@ -4,20 +4,17 @@ import type {
   WorkflowPersistenceRepository,
 } from "@/modules/workflows/domain/workflowPersistenceRepository";
 import type { Workflow, WorkflowId } from "@/modules/workflows/domain/workflowEngine";
-import { WorkflowConcurrencyError } from "@/modules/workflows/domain/workflowPersistenceRepository";
 import {
   mapIsoDateToDate,
   mapJsonToPrismaInput,
   mapOptionalIsoDateToDate,
   mapWorkflowExecutionEventToPrisma,
-  mapWorkflowRunListRecordToDomain,
-  mapWorkflowRunToDomain,
   mapWorkflowStatusToPrisma,
   mapWorkflowStepStatusToPrisma,
-  workflowRunInclude,
-  workflowRunListInclude,
 } from "@/modules/workflows/infrastructure/workflowPersistenceMapper";
 import { prismaClient } from "@/shared/infrastructure/database/prismaClient";
+import { PrismaWorkflowRunRepository } from "@/modules/workflowDefinitions/infrastructure/prismaWorkflowRunRepository";
+import { WorkflowConcurrencyError } from "@/modules/workflows/domain/workflowPersistenceRepository";
 
 type PrismaTransaction = Prisma.TransactionClient;
 
@@ -37,7 +34,7 @@ export class PrismaWorkflowPersistenceRepository
         select: { id: true },
       });
       if (existing) throw new Error("Workflow identifier already exists.");
-      await this.persistWorkflow(transaction, workflow, "create");
+      await this.persistWorkflow(transaction, workflow);
     });
 
     const persistedWorkflow = await this.findById(workflow.id);
@@ -50,115 +47,41 @@ export class PrismaWorkflowPersistenceRepository
   }
 
   async findById(workflowId: WorkflowId) {
-    const workflowRun = await this.prisma.workflowRun.findFirst({
-      where: {
-        id: workflowId,
-        workflowDefinition: { organizationId: this.organizationId },
-      },
-      include: workflowRunInclude,
-    });
-
-    return workflowRun ? mapWorkflowRunToDomain(workflowRun) : null;
+    return new PrismaWorkflowRunRepository(this.organizationId, this.prisma).findById(workflowId);
   }
 
   async list(params: ListWorkflowsParams = {}) {
-    const limit = Math.min(Math.max(params.limit ?? 50, 1), 100);
-    const offset = Math.max(params.offset ?? 0, 0);
-    const workflowRuns = await this.prisma.workflowRun.findMany({
-      where: {
-        workflowDefinition: { organizationId: this.organizationId },
-        status: params.status
-          ? mapWorkflowStatusToPrisma(params.status)
-          : undefined,
-      },
-      include: workflowRunListInclude,
-      orderBy: {
-        createdAt: "desc",
-      },
-      take: limit,
-      skip: offset,
-    });
-
-    return workflowRuns.map(mapWorkflowRunListRecordToDomain);
+    return new PrismaWorkflowRunRepository(this.organizationId, this.prisma).list(params);
   }
 
   async update(workflow: Workflow) {
-    await this.inTransaction(async (transaction) => {
-      const ownedWorkflow = await transaction.workflowRun.findFirst({
-        where: {
-          id: workflow.id,
-          workflowDefinition: { organizationId: this.organizationId },
-        },
-        select: { id: true },
-      });
-
-      if (!ownedWorkflow) {
-        throw new Error("Workflow was not found.");
-      }
-
-      await transaction.workflowRun.update({
-        where: {
-          id: workflow.id,
-        },
-        data: {
-          currentStepId: null,
-        },
-      });
-
-      await this.persistWorkflow(transaction, workflow, "update");
-    });
-
-    const persistedWorkflow = await this.findById(workflow.id);
-
-    if (!persistedWorkflow) {
-      throw new Error("Workflow was not found after update.");
+    if (workflow.status === "draft") {
+      await this.inTransaction((transaction) => this.updateLegacyDraft(transaction, workflow));
+      return (await this.findById(workflow.id))!;
     }
-
-    return persistedWorkflow;
+    return new PrismaWorkflowRunRepository(this.organizationId, this.prisma).update(workflow);
   }
 
   async exists(workflowId: WorkflowId) {
-    const workflowRun = await this.prisma.workflowRun.findFirst({
-      where: {
-        id: workflowId,
-        workflowDefinition: { organizationId: this.organizationId },
-      },
-      select: {
-        id: true,
-      },
-    });
-
-    return Boolean(workflowRun);
+    return new PrismaWorkflowRunRepository(this.organizationId, this.prisma).exists(workflowId);
   }
 
   private async persistWorkflow(
     transaction: PrismaTransaction,
     workflow: Workflow,
-    operation: "create" | "update",
   ) {
-    if (operation === "create") {
-      await transaction.workflowDefinition.create({
+    await transaction.workflowDefinition.create({
         data: {
           id: workflow.id,
           organizationId: this.organizationId,
           createdByUserId: this.createdByUserId,
+          definitionKey: workflow.id,
           name: workflow.name,
           version: 1,
           createdAt: mapIsoDateToDate(workflow.createdAt),
           updatedAt: mapIsoDateToDate(workflow.updatedAt),
         },
       });
-    } else {
-      const definitionUpdate = await transaction.workflowDefinition.updateMany({
-        where: { id: workflow.id, organizationId: this.organizationId, version: workflow.version },
-        data: {
-          name: workflow.name,
-          version: { increment: 1 },
-          updatedAt: mapIsoDateToDate(workflow.updatedAt),
-        },
-      });
-      if (definitionUpdate.count !== 1) throw new WorkflowConcurrencyError(workflow.id);
-    }
 
     const definitionSteps = workflow.steps.map((step) => ({
         id: step.id,
@@ -172,31 +95,7 @@ export class PrismaWorkflowPersistenceRepository
         assigneeRole: step.assignee.type === "role" ? step.assignee.role.toUpperCase() as "OWNER" | "ADMIN" | "EDITOR" | "VIEWER" : null,
         priority: "NORMAL" as const,
     }));
-    if (operation === "create") {
-      await transaction.workflowDefinitionStep.createMany({ data: definitionSteps });
-    } else {
-      await transaction.workflowDefinitionTransition.deleteMany({
-        where: { sourceStep: { workflowDefinitionId: workflow.id } },
-      });
-      await transaction.workflowDefinitionStep.updateMany({
-        where: { workflowDefinitionId: workflow.id },
-        data: { order: { increment: 1_000 } },
-      });
-      for (const step of definitionSteps) {
-        const updated = await transaction.workflowDefinitionStep.updateMany({
-          where: { id: step.id, workflowDefinitionId: workflow.id },
-          data: { name: step.name, order: step.order, updatedAt: step.updatedAt, assigneeType: step.assigneeType, assigneeUserId: step.assigneeUserId, assigneeRole: step.assigneeRole, priority: step.priority },
-        });
-        if (updated.count === 0) {
-          const collision = await transaction.workflowDefinitionStep.findUnique({ where: { id: step.id }, select: { id: true } });
-          if (collision) throw new Error("Workflow step identifier already exists.");
-          await transaction.workflowDefinitionStep.create({ data: step });
-        }
-      }
-      await transaction.workflowDefinitionStep.deleteMany({
-        where: { workflowDefinitionId: workflow.id, id: { notIn: definitionSteps.map((step) => step.id) } },
-      });
-    }
+    await transaction.workflowDefinitionStep.createMany({ data: definitionSteps });
 
     await transaction.workflowDefinitionTransition.createMany({
       data: workflow.steps.flatMap((step) => step.transitions.map((transition) => ({
@@ -225,22 +124,7 @@ export class PrismaWorkflowPersistenceRepository
         updatedAt: mapIsoDateToDate(workflow.updatedAt),
     };
 
-    if (operation === "create") {
-      await transaction.workflowRun.create({ data: runData });
-    } else {
-      await transaction.workflowRun.update({
-        where: { id: workflow.id },
-        data: {
-          status: runData.status,
-          currentStepId: null,
-          startedAt: runData.startedAt,
-          finishedAt: runData.finishedAt,
-          failureReason: runData.failureReason,
-          cancellationReason: runData.cancellationReason,
-          updatedAt: runData.updatedAt,
-        },
-      });
-    }
+    await transaction.workflowRun.create({ data: runData });
 
     const runSteps = workflow.steps.map((step) => ({
         id: step.id,
@@ -260,42 +144,7 @@ export class PrismaWorkflowPersistenceRepository
         assigneeRole: step.assignee.type === "role" ? step.assignee.role.toUpperCase() as "OWNER" | "ADMIN" | "EDITOR" | "VIEWER" : null,
         priority: "NORMAL" as const,
     }));
-    if (operation === "create") {
-      await transaction.workflowRunStep.createMany({ data: runSteps });
-    } else {
-      await transaction.workflowRunStep.updateMany({
-        where: { workflowRunId: workflow.id },
-        data: { order: { increment: 1_000 } },
-      });
-      for (const step of runSteps) {
-        const updated = await transaction.workflowRunStep.updateMany({
-          where: { id: step.id, workflowRunId: workflow.id },
-          data: {
-            workflowDefinitionStepId: step.workflowDefinitionStepId,
-            name: step.name,
-            order: step.order,
-            status: step.status,
-            executionResult: step.executionResult,
-            startedAt: step.startedAt,
-            finishedAt: step.finishedAt,
-            errorMessage: step.errorMessage,
-            updatedAt: step.updatedAt,
-            assigneeType: step.assigneeType,
-            assigneeUserId: step.assigneeUserId,
-            assigneeRole: step.assigneeRole,
-            priority: step.priority,
-          },
-        });
-        if (updated.count === 0) {
-          const collision = await transaction.workflowRunStep.findUnique({ where: { id: step.id }, select: { id: true } });
-          if (collision) throw new Error("Workflow run step identifier already exists.");
-          await transaction.workflowRunStep.create({ data: step });
-        }
-      }
-      await transaction.workflowRunStep.deleteMany({
-        where: { workflowRunId: workflow.id, id: { notIn: runSteps.map((step) => step.id) } },
-      });
-    }
+    await transaction.workflowRunStep.createMany({ data: runSteps });
 
     await transaction.workflowRun.update({
       where: {
@@ -310,6 +159,156 @@ export class PrismaWorkflowPersistenceRepository
       data: workflow.executionHistory.map((event) =>
         mapWorkflowExecutionEventToPrisma(workflow.id, event),
       ),
+      skipDuplicates: true,
+    });
+  }
+
+  private async updateLegacyDraft(transaction: PrismaTransaction, workflow: Workflow) {
+    const owned = await transaction.workflowRun.findFirst({
+      where: {
+        id: workflow.id,
+        workflowDefinition: { organizationId: this.organizationId },
+      },
+      select: { id: true },
+    });
+    if (!owned) throw new Error("Workflow was not found.");
+
+    const runUpdate = await transaction.workflowRun.updateMany({
+      where: { id: workflow.id, version: workflow.version },
+      data: { version: { increment: 1 }, updatedAt: mapIsoDateToDate(workflow.updatedAt) },
+    });
+    if (runUpdate.count !== 1) throw new WorkflowConcurrencyError(workflow.id);
+
+    const definitionUpdate = await transaction.workflowDefinition.updateMany({
+      where: {
+        id: workflow.id,
+        organizationId: this.organizationId,
+        version: workflow.version,
+        status: "DRAFT",
+      },
+      data: {
+        name: workflow.name,
+        version: { increment: 1 },
+        updatedAt: mapIsoDateToDate(workflow.updatedAt),
+      },
+    });
+    if (definitionUpdate.count !== 1) throw new WorkflowConcurrencyError(workflow.id);
+
+    await transaction.workflowDefinitionTransition.deleteMany({
+      where: { sourceStep: { workflowDefinitionId: workflow.id } },
+    });
+    await transaction.workflowDefinitionStep.updateMany({
+      where: { workflowDefinitionId: workflow.id },
+      data: { order: { increment: 1_000 } },
+    });
+    await transaction.workflowRunStep.deleteMany({
+      where: {
+        workflowRunId: workflow.id,
+        id: { notIn: workflow.steps.map((step) => step.id) },
+      },
+    });
+    for (const step of workflow.steps) {
+      const definitionStep = {
+        name: step.name,
+        order: step.order,
+        updatedAt: mapIsoDateToDate(workflow.updatedAt),
+        assigneeType: step.assignee.type === "role" ? "ROLE" as const : "USER" as const,
+        assigneeUserId: step.assignee.type === "user" ? step.assignee.userId : null,
+        assigneeRole: step.assignee.type === "role" ? step.assignee.role.toUpperCase() as "OWNER" | "ADMIN" | "EDITOR" | "VIEWER" : null,
+        priority: "NORMAL" as const,
+      };
+      const updated = await transaction.workflowDefinitionStep.updateMany({
+        where: { id: step.id, workflowDefinitionId: workflow.id },
+        data: definitionStep,
+      });
+      if (updated.count === 0) {
+        const collision = await transaction.workflowDefinitionStep.findUnique({
+          where: { id: step.id },
+          select: { id: true },
+        });
+        if (collision) throw new Error("Workflow step identifier already exists.");
+        await transaction.workflowDefinitionStep.create({
+          data: {
+            id: step.id,
+            workflowDefinitionId: workflow.id,
+            createdAt: mapIsoDateToDate(workflow.createdAt),
+            ...definitionStep,
+          },
+        });
+      }
+    }
+    await transaction.workflowDefinitionStep.deleteMany({
+      where: {
+        workflowDefinitionId: workflow.id,
+        id: { notIn: workflow.steps.map((step) => step.id) },
+      },
+    });
+    await transaction.workflowDefinitionTransition.createMany({
+      data: workflow.steps.flatMap((step) => step.transitions.map((transition) => ({
+        id: transition.id,
+        sourceStepId: step.id,
+        targetStepId: transition.targetStepId,
+        name: transition.name,
+        description: transition.description,
+        result: transition.result,
+        endsWorkflow: transition.endsWorkflow,
+        createdAt: mapIsoDateToDate(workflow.createdAt),
+        updatedAt: mapIsoDateToDate(workflow.updatedAt),
+      }))),
+    });
+
+    await transaction.workflowRunStep.updateMany({
+      where: { workflowRunId: workflow.id },
+      data: { order: { increment: 1_000 } },
+    });
+    for (const step of workflow.steps) {
+      const runStep = {
+        workflowDefinitionStepId: step.id,
+        name: step.name,
+        order: step.order,
+        status: mapWorkflowStepStatusToPrisma(step.status),
+        executionResult: mapJsonToPrismaInput(step.executionResult),
+        startedAt: mapOptionalIsoDateToDate(step.startedAt),
+        finishedAt: mapOptionalIsoDateToDate(step.finishedAt),
+        errorMessage: step.errorMessage,
+        updatedAt: mapIsoDateToDate(workflow.updatedAt),
+        assigneeType: step.assignee.type === "role" ? "ROLE" as const : "USER" as const,
+        assigneeUserId: step.assignee.type === "user" ? step.assignee.userId : null,
+        assigneeRole: step.assignee.type === "role" ? step.assignee.role.toUpperCase() as "OWNER" | "ADMIN" | "EDITOR" | "VIEWER" : null,
+        priority: "NORMAL" as const,
+      };
+      const updated = await transaction.workflowRunStep.updateMany({
+        where: { id: step.id, workflowRunId: workflow.id },
+        data: runStep,
+      });
+      if (updated.count === 0) {
+        const collision = await transaction.workflowRunStep.findUnique({
+          where: { id: step.id },
+          select: { id: true },
+        });
+        if (collision) throw new Error("Workflow run step identifier already exists.");
+        await transaction.workflowRunStep.create({
+          data: {
+            id: step.id,
+            workflowRunId: workflow.id,
+            createdAt: mapIsoDateToDate(workflow.createdAt),
+            ...runStep,
+          },
+        });
+      }
+    }
+    await transaction.workflowRunStep.deleteMany({
+      where: {
+        workflowRunId: workflow.id,
+        id: { notIn: workflow.steps.map((step) => step.id) },
+      },
+    });
+    await transaction.workflowRun.update({
+      where: { id: workflow.id },
+      data: { currentStepId: workflow.currentStepId },
+    });
+    await transaction.workflowExecutionEvent.createMany({
+      data: workflow.executionHistory.map((event) => mapWorkflowExecutionEventToPrisma(workflow.id, event)),
       skipDuplicates: true,
     });
   }

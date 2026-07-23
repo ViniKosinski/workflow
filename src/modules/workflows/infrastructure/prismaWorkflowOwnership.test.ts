@@ -42,7 +42,7 @@ describe("PrismaWorkflowPersistenceRepository ownership", () => {
     vi.stubEnv("DATABASE_URL", "postgresql://test:test@localhost:5432/test");
     const { PrismaWorkflowPersistenceRepository } = await import("@/modules/workflows/infrastructure/prismaWorkflowPersistenceRepository");
     const transaction = {
-      workflowRun: { findFirst: vi.fn().mockResolvedValue(null), update: vi.fn() },
+      workflowRun: { findFirst: vi.fn().mockResolvedValue(null), update: vi.fn(), updateMany: vi.fn().mockResolvedValue({ count: 0 }) },
       workflowExecutionEvent: { deleteMany: vi.fn() },
       workflowRunStep: { deleteMany: vi.fn() },
       workflowDefinitionStep: { deleteMany: vi.fn() },

@@ -19,6 +19,11 @@ integration("organization migration backfill", () => {
       "20260722140000_add_organizations_and_roles",
       "20260722150000_enforce_single_organization_owner",
       "20260723100000_add_workflow_optimistic_version",
+      "20260724100000_add_collaborative_tasks",
+      "20260725100000_enforce_step_assignee_integrity",
+      "20260726100000_add_workflow_transitions",
+      "20260727100000_add_skipped_workflow_step_status",
+      "20260728100000_add_versioned_workflow_definitions",
     ];
 
     await client.connect();
@@ -38,8 +43,15 @@ integration("organization migration backfill", () => {
         await client.query(await readFile(path.join(process.cwd(), "prisma", "migrations", migration, "migration.sql"), "utf8"));
       }
 
-      const workflow = await client.query("SELECT organization_id, created_by_user_id, version FROM workflow_definitions WHERE id = 'existing-workflow'");
-      expect(workflow.rows[0]).toEqual({ organization_id: "existing-user", created_by_user_id: "existing-user", version: 1 });
+      const workflow = await client.query("SELECT organization_id, created_by_user_id, definition_key, revision_number, status, version FROM workflow_definitions WHERE id = 'existing-workflow'");
+      expect(workflow.rows[0]).toEqual({
+        organization_id: "existing-user",
+        created_by_user_id: "existing-user",
+        definition_key: "existing-workflow",
+        revision_number: 1,
+        status: "draft",
+        version: 1,
+      });
       await expect(client.query("SELECT 1 FROM organizations WHERE id = 'existing-user'")).resolves.toMatchObject({ rowCount: 1 });
       await expect(client.query("SELECT role FROM organization_memberships WHERE organization_id = 'existing-user' AND user_id = 'existing-user'")).resolves.toMatchObject({ rows: [{ role: "owner" }] });
 
