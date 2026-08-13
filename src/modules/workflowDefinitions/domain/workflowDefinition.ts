@@ -1,5 +1,6 @@
 import { WorkflowDecisionEngine } from "@/modules/workflows/domain/workflowDecisionEngine";
 import type { StepAssignee, Workflow, WorkflowStepTransition } from "@/modules/workflows/domain/workflowEngine";
+import { WorkflowFormService, type WorkflowFormField } from "@/modules/workflowDefinitions/domain/workflowForm";
 
 export const WORKFLOW_DEFINITION_STATUSES = {
   draft: "draft",
@@ -26,6 +27,7 @@ export type WorkflowDefinition = Readonly<{
   name: string;
   status: WorkflowDefinitionStatus;
   steps: ReadonlyArray<WorkflowDefinitionStep>;
+  form: ReadonlyArray<WorkflowFormField>;
   createdByUserId: string;
   publishedByUserId?: string;
   createdAt: string;
@@ -42,13 +44,17 @@ export class WorkflowDefinitionError extends Error {
 }
 
 export class WorkflowDefinitionService {
-  constructor(private readonly decisions = new WorkflowDecisionEngine()) {}
+  constructor(
+    private readonly decisions = new WorkflowDecisionEngine(),
+    private readonly forms = new WorkflowFormService(),
+  ) {}
 
   create(input: Readonly<{
     id: string;
     definitionKey?: string;
     name: string;
     steps: ReadonlyArray<WorkflowDefinitionStep>;
+    form?: ReadonlyArray<WorkflowFormField>;
     createdByUserId: string;
     now: string;
   }>): WorkflowDefinition {
@@ -60,6 +66,7 @@ export class WorkflowDefinitionService {
       name: input.name.trim(),
       status: WORKFLOW_DEFINITION_STATUSES.draft,
       steps: input.steps,
+      form: this.forms.normalizeFields(input.form ?? []),
       createdByUserId: input.createdByUserId,
       createdAt: input.now,
       updatedAt: input.now,
@@ -71,10 +78,11 @@ export class WorkflowDefinitionService {
   updateDraft(definition: WorkflowDefinition, input: Readonly<{
     name: string;
     steps: ReadonlyArray<WorkflowDefinitionStep>;
+    form?: ReadonlyArray<WorkflowFormField>;
     now: string;
   }>): WorkflowDefinition {
     this.requireDraft(definition);
-    const updated = { ...definition, name: input.name.trim(), steps: input.steps, updatedAt: input.now };
+    const updated = { ...definition, name: input.name.trim(), steps: input.steps, form: this.forms.normalizeFields(input.form ?? definition.form), updatedAt: input.now };
     this.requireValidIdentity(updated);
     return updated;
   }
@@ -82,6 +90,7 @@ export class WorkflowDefinitionService {
   publish(definition: WorkflowDefinition, actorUserId: string, now: string): WorkflowDefinition {
     this.requireDraft(definition);
     this.decisions.validate(this.asValidationWorkflow(definition));
+    this.forms.validate(definition.form);
     return {
       ...definition,
       status: WORKFLOW_DEFINITION_STATUSES.published,
@@ -95,6 +104,8 @@ export class WorkflowDefinitionService {
     id: string;
     stepIds: ReadonlyArray<string>;
     transitionIds: ReadonlyArray<string>;
+    formFieldIds: ReadonlyArray<string>;
+    formOptionIds: ReadonlyArray<string>;
     actorUserId: string;
     now: string;
   }>): WorkflowDefinition {
@@ -118,6 +129,14 @@ export class WorkflowDefinitionService {
     if (transitionIndex !== input.transitionIds.length) {
       throw new WorkflowDefinitionError("Identificadores de transição inconsistentes.");
     }
+    if (input.formFieldIds.length !== definition.form.length) throw new WorkflowDefinitionError("Identificadores insuficientes para copiar o formulário.");
+    let optionIndex = 0;
+    const form = definition.form.map((field, index) => ({
+      ...field,
+      id: input.formFieldIds[index],
+      options: field.options.map((option) => ({ ...option, id: input.formOptionIds[optionIndex++] })),
+    }));
+    if (optionIndex !== input.formOptionIds.length) throw new WorkflowDefinitionError("Identificadores de opção inconsistentes.");
     return {
       id: input.id,
       definitionKey: definition.definitionKey,
@@ -126,6 +145,7 @@ export class WorkflowDefinitionService {
       name: definition.name,
       status: WORKFLOW_DEFINITION_STATUSES.draft,
       steps,
+      form,
       createdByUserId: input.actorUserId,
       createdAt: input.now,
       updatedAt: input.now,

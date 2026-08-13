@@ -22,6 +22,8 @@ import { PrismaWorkflowPersistenceRepository } from "@/modules/workflows/infrast
 import { WorkflowConcurrencyError } from "@/modules/workflows/domain/workflowPersistenceRepository";
 import { cancelPersistedWorkflow } from "@/modules/workflows/application/cancelPersistedWorkflow";
 import { WorkflowValidationError } from "@/modules/workflows/application/workflowUseCaseErrors";
+import { WorkflowFormService } from "@/modules/workflowDefinitions/domain/workflowForm";
+import { PrismaWorkflowRunFormRepository } from "@/modules/workflowDefinitions/infrastructure/prismaWorkflowRunFormRepository";
 
 const databaseUrl = process.env.TEST_DATABASE_URL;
 const integration = describe.skipIf(!databaseUrl);
@@ -53,6 +55,8 @@ integration("workflow definition hardening", () => {
       memberships: new PrismaMembershipRepository(prisma),
       assignments: new WorkflowAssignmentService(),
       organizationId,
+      forms: new WorkflowFormService(),
+      runForms: new PrismaWorkflowRunFormRepository(organizationId, prisma),
       clock: { now: () => new Date().toISOString() },
       ids,
     };

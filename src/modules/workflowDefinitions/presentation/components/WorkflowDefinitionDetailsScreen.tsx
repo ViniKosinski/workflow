@@ -6,6 +6,7 @@ import type {
   WorkflowDefinition,
   WorkflowDefinitionStep,
 } from "@/modules/workflowDefinitions/domain/workflowDefinition";
+import { WorkflowDefinitionFormEditor } from "@/modules/workflowDefinitions/presentation/components/WorkflowDefinitionFormEditor";
 
 export function WorkflowDefinitionDetailsScreen({ id }: Readonly<{ id: string }>) {
   const router = useRouter();
@@ -40,7 +41,7 @@ export function WorkflowDefinitionDetailsScreen({ id }: Readonly<{ id: string }>
       const body = await response.json();
       if (!response.ok) throw new Error(body.message);
       if (path === "versions") router.push(`/workflow-definitions/${body.definition.id}`);
-      else if (path === "runs") setMessage(`Execução ${body.run.id} iniciada.`);
+      else if (path === "runs") router.push(`/workflow-runs/${body.run.id}`);
       else applyDefinition(body.definition);
       router.refresh();
     } catch (caught) {
@@ -171,5 +172,7 @@ export function WorkflowDefinitionDetailsScreen({ id }: Readonly<{ id: string }>
         <p className="mt-1 text-sm text-slate-600">Responsável: {step.assignee.type === "role" ? step.assignee.role : step.assignee.userId}</p>
         <p className="mt-1 text-xs text-slate-500">{step.transitions.map((transition) => `${transition.result} → ${transition.endsWorkflow ? "encerrar" : transition.targetStepId}`).join(" · ")}</p>
       </li>)}</ol>}
+    {definition.status === "draft" ? <WorkflowDefinitionFormEditor definitionId={definition.id} initialFields={definition.form} /> :
+      <section className="border-t pt-6"><h2 className="text-xl font-bold">Formulário</h2><p className="text-sm text-slate-600">{definition.form.length} campo(s) no snapshot da revisão.</p></section>}
   </section>;
 }

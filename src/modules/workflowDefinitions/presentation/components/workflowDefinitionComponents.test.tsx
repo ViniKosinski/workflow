@@ -19,6 +19,7 @@ const definition = {
   createdByUserId: "user",
   createdAt: "2026-07-23T10:00:00.000Z",
   updatedAt: "2026-07-23T10:00:00.000Z",
+  form: [],
 };
 
 describe("workflow definition components", () => {
@@ -46,7 +47,7 @@ describe("workflow definition components", () => {
     render(<WorkflowDefinitionDetailsScreen id="definition" />);
     await screen.findByText("Aprovação");
     fireEvent.click(screen.getByRole("button", { name: "Iniciar execução" }));
-    expect(await screen.findByText("Execução run-1 iniciada.")).toBeTruthy();
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/workflow-runs/run-1"));
   });
 
   it("edita e salva uma revisao em rascunho", async () => {

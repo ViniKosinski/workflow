@@ -180,6 +180,15 @@ export function createWorkflowEngine(
   };
 
   return {
+    validateFormValuesUpdate(workflow: Workflow) {
+      if (workflow.status !== WORKFLOW_STATUSES.running) {
+        return fail<Workflow>({
+          code: "INVALID_OPERATION",
+          message: "Somente execuções ativas podem receber alterações de formulário.",
+        }, []);
+      }
+      return succeed(workflow, []);
+    },
     createWorkflow(input: CreateWorkflowInput) {
       const workflowId = input.id ?? dependencies.idGenerator.createWorkflowId();
       const createdAt = dependencies.clock.now();

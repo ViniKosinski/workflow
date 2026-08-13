@@ -116,6 +116,8 @@ export async function createWorkflowDefinitionRevision(
     id: dependencies.ids.create(),
     stepIds: source.steps.map(() => dependencies.ids.create()),
     transitionIds: Array.from({ length: transitionCount }, () => dependencies.ids.create()),
+    formFieldIds: source.form.map(() => dependencies.ids.create()),
+    formOptionIds: source.form.flatMap((field) => field.options.map(() => dependencies.ids.create())),
     actorUserId,
     now: dependencies.clock.now(),
   });

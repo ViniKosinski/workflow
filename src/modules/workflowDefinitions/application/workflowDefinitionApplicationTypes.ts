@@ -5,6 +5,8 @@ import type { WorkflowRunRepository } from "@/modules/workflowDefinitions/domain
 import type { WorkflowEngineService } from "@/modules/workflows/domain/workflowEngine";
 import type { MembershipRepository } from "@/modules/organizations/domain/membershipRepository";
 import type { WorkflowAssignmentService } from "@/modules/workflows/domain/workflowEngine";
+import type { WorkflowFormService, WorkflowFormFieldType, WorkflowFormValue } from "@/modules/workflowDefinitions/domain/workflowForm";
+import type { WorkflowRunFormRepository } from "@/modules/workflowDefinitions/domain/workflowRunFormRepository";
 
 export type WorkflowDefinitionApplicationDependencies = Readonly<{
   definitions: WorkflowDefinitionRepository;
@@ -15,8 +17,21 @@ export type WorkflowDefinitionApplicationDependencies = Readonly<{
   memberships: MembershipRepository;
   assignments: WorkflowAssignmentService;
   organizationId: string;
+  forms: WorkflowFormService;
+  runForms: WorkflowRunFormRepository;
   clock: Readonly<{ now: () => string }>;
   ids: Readonly<{ create: () => string }>;
+}>;
+
+export type WorkflowFormFieldCommand = Readonly<{
+  key: string;
+  label: string;
+  description?: string;
+  type: WorkflowFormFieldType;
+  required: boolean;
+  order: number;
+  defaultValue?: WorkflowFormValue;
+  options: ReadonlyArray<Readonly<{ value: string; label: string; order: number }>>;
 }>;
 
 export type WorkflowDefinitionCommand = Readonly<{

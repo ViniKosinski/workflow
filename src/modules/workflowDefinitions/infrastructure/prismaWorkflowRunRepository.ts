@@ -142,6 +142,33 @@ export class PrismaWorkflowRunRepository implements WorkflowRunRepository, Workf
       await transaction.workflowExecutionEvent.createMany({
         data: run.executionHistory.map((event) => mapWorkflowExecutionEventToPrisma(run.id, event)),
       });
+      for (const field of definition.form) {
+        const snapshotFieldId = crypto.randomUUID();
+        await transaction.workflowRunFormField.create({
+          data: {
+            id: snapshotFieldId,
+            workflowRunId: run.id,
+            sourceFieldId: field.id,
+            key: field.key,
+            label: field.label,
+            description: field.description,
+            type: field.type.toUpperCase() as "TEXT" | "TEXTAREA" | "NUMBER" | "CURRENCY" | "BOOLEAN" | "DATE" | "DATETIME" | "SELECT" | "MULTISELECT",
+            required: field.required,
+            order: field.order,
+            defaultValue: field.defaultValue === undefined ? undefined : field.defaultValue === null ? Prisma.JsonNull : field.defaultValue,
+            options: {
+              createMany: {
+                data: field.options.map((option) => ({
+                  id: crypto.randomUUID(),
+                  value: option.value,
+                  label: option.label,
+                  order: option.order,
+                })),
+              },
+            },
+          },
+        });
+      }
     });
     return (await this.findById(run.id))!;
   }

@@ -49,6 +49,7 @@ model User {
   startedWorkflowRuns WorkflowRun[] @relation("StartedWorkflowRuns")
   assignedDefinitionSteps WorkflowDefinitionStep[] @relation("DefinitionStepAssignee")
   assignedRunSteps WorkflowRunStep[] @relation("RunStepAssignee")
+  updatedWorkflowRunFormValues WorkflowRunFormValue[]
 
   @@map("users")
 }
@@ -173,6 +174,7 @@ model WorkflowDefinition {
   publishedBy  User?        @relation("PublishedWorkflowDefinitions", fields: [publishedByUserId], references: [id], onDelete: Restrict)
   steps WorkflowDefinitionStep[]
   runs  WorkflowRun[]
+  formFields WorkflowDefinitionFormField[]
 
   @@index([organizationId, createdAt])
   @@index([organizationId, status, updatedAt])
@@ -242,6 +244,8 @@ model WorkflowRun {
   currentStep        WorkflowRunStep?         @relation("CurrentWorkflowRunStep", fields: [currentStepId], references: [id], onDelete: SetNull)
   steps              WorkflowRunStep[]        @relation("WorkflowRunSteps")
   events             WorkflowExecutionEvent[]
+  formFields         WorkflowRunFormField[]
+  formValues         WorkflowRunFormValue[]
 
   @@index([workflowDefinitionId])
   @@index([workflowDefinitionId, status, createdAt])
@@ -249,6 +253,101 @@ model WorkflowRun {
   @@index([workflowDefinitionId, createdAt])
   @@index([status])
   @@map("workflow_runs")
+}
+
+enum WorkflowFormFieldType {
+  TEXT        @map("text")
+  TEXTAREA    @map("textarea")
+  NUMBER      @map("number")
+  CURRENCY    @map("currency")
+  BOOLEAN     @map("boolean")
+  DATE        @map("date")
+  DATETIME    @map("datetime")
+  SELECT      @map("select")
+  MULTISELECT @map("multiselect")
+  @@map("workflow_form_field_type")
+}
+
+model WorkflowDefinitionFormField {
+  id String @id @db.VarChar(64)
+  workflowDefinitionId String @map("workflow_definition_id") @db.VarChar(64)
+  key String @db.VarChar(120)
+  label String @db.VarChar(255)
+  description String? @db.Text
+  type WorkflowFormFieldType
+  required Boolean @default(false)
+  order Int
+  defaultValue Json? @map("default_value")
+  workflowDefinition WorkflowDefinition @relation(fields: [workflowDefinitionId], references: [id], onDelete: Cascade)
+  options WorkflowDefinitionFormOption[]
+  snapshots WorkflowRunFormField[]
+  @@unique([workflowDefinitionId, key])
+  @@unique([workflowDefinitionId, order])
+  @@index([workflowDefinitionId])
+  @@map("workflow_definition_form_fields")
+}
+
+model WorkflowDefinitionFormOption {
+  id String @id @db.VarChar(64)
+  fieldId String @map("field_id") @db.VarChar(64)
+  value String @db.VarChar(160)
+  label String @db.VarChar(255)
+  order Int
+  field WorkflowDefinitionFormField @relation(fields: [fieldId], references: [id], onDelete: Cascade)
+  @@unique([fieldId, value])
+  @@unique([fieldId, order])
+  @@index([fieldId])
+  @@map("workflow_definition_form_options")
+}
+
+model WorkflowRunFormField {
+  id String @id @db.VarChar(64)
+  workflowRunId String @map("workflow_run_id") @db.VarChar(64)
+  sourceFieldId String? @map("source_field_id") @db.VarChar(64)
+  key String @db.VarChar(120)
+  label String @db.VarChar(255)
+  description String? @db.Text
+  type WorkflowFormFieldType
+  required Boolean
+  order Int
+  defaultValue Json? @map("default_value")
+  workflowRun WorkflowRun @relation(fields: [workflowRunId], references: [id], onDelete: Cascade)
+  sourceField WorkflowDefinitionFormField? @relation(fields: [sourceFieldId], references: [id], onDelete: SetNull)
+  options WorkflowRunFormOption[]
+  value WorkflowRunFormValue?
+  @@unique([workflowRunId, key])
+  @@unique([workflowRunId, order])
+  @@unique([workflowRunId, id])
+  @@index([workflowRunId])
+  @@index([sourceFieldId])
+  @@map("workflow_run_form_fields")
+}
+
+model WorkflowRunFormOption {
+  id String @id @db.VarChar(64)
+  fieldId String @map("field_id") @db.VarChar(64)
+  value String @db.VarChar(160)
+  label String @db.VarChar(255)
+  order Int
+  field WorkflowRunFormField @relation(fields: [fieldId], references: [id], onDelete: Cascade)
+  @@unique([fieldId, value])
+  @@unique([fieldId, order])
+  @@index([fieldId])
+  @@map("workflow_run_form_options")
+}
+
+model WorkflowRunFormValue {
+  workflowRunId String @map("workflow_run_id") @db.VarChar(64)
+  fieldId String @unique @map("field_id") @db.VarChar(64)
+  value Json?
+  updatedByUserId String @map("updated_by_user_id") @db.VarChar(64)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  workflowRun WorkflowRun @relation(fields: [workflowRunId], references: [id], onDelete: Cascade)
+  field WorkflowRunFormField @relation(fields: [workflowRunId, fieldId], references: [workflowRunId, id], onDelete: Cascade)
+  updatedBy User @relation(fields: [updatedByUserId], references: [id], onDelete: Restrict)
+  @@id([workflowRunId, fieldId])
+  @@index([workflowRunId])
+  @@map("workflow_run_form_values")
 }
 
 model WorkflowRunStep {

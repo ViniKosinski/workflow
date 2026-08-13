@@ -11,6 +11,8 @@ import { PrismaWorkflowRunRepository } from "@/modules/workflowDefinitions/infra
 import { createWorkflowEngine } from "@/modules/workflows/domain/workflowEngineService";
 import { WorkflowAssignmentService } from "@/modules/workflows/domain/workflowEngine";
 import { PrismaMembershipRepository } from "@/modules/organizations/infrastructure/prismaMembershipRepository";
+import { WorkflowFormService } from "@/modules/workflowDefinitions/domain/workflowForm";
+import { PrismaWorkflowRunFormRepository } from "@/modules/workflowDefinitions/infrastructure/prismaWorkflowRunFormRepository";
 
 const databaseUrl = process.env.TEST_DATABASE_URL;
 const integration = describe.skipIf(!databaseUrl);
@@ -42,6 +44,8 @@ integration("versioned workflow definitions and independent runs", () => {
     memberships: new PrismaMembershipRepository(prisma),
     assignments: new WorkflowAssignmentService(),
     organizationId,
+    forms: new WorkflowFormService(),
+    runForms: new PrismaWorkflowRunFormRepository(organizationId, prisma),
     clock: { now: () => new Date().toISOString() },
     ids: { create: () => crypto.randomUUID() },
   };

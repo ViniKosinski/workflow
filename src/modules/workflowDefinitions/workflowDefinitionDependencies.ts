@@ -6,6 +6,8 @@ import { PrismaWorkflowDefinitionRepository } from "@/modules/workflowDefinition
 import { PrismaWorkflowRunRepository } from "@/modules/workflowDefinitions/infrastructure/prismaWorkflowRunRepository";
 import { createWorkflowEngine } from "@/modules/workflows/domain/workflowEngineService";
 import { WorkflowAssignmentService } from "@/modules/workflows/domain/workflowEngine";
+import { WorkflowFormService } from "@/modules/workflowDefinitions/domain/workflowForm";
+import { PrismaWorkflowRunFormRepository } from "@/modules/workflowDefinitions/infrastructure/prismaWorkflowRunFormRepository";
 
 export function createWorkflowDefinitionDependencies(actorUserId: string, organizationId: string) {
   const ids = { create: () => crypto.randomUUID() };
@@ -32,6 +34,8 @@ export function createWorkflowDefinitionDependencies(actorUserId: string, organi
     memberships,
     assignments: new WorkflowAssignmentService(),
     organizationId,
+    forms: new WorkflowFormService(),
+    runForms: new PrismaWorkflowRunFormRepository(organizationId),
     clock: { now: () => new Date().toISOString() },
     ids,
   };

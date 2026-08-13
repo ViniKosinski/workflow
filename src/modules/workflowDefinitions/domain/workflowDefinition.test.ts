@@ -49,6 +49,8 @@ describe("WorkflowDefinitionService", () => {
       id: "definition-v2",
       stepIds: ["analysis-v2", "finish-v2"],
       transitionIds: ["approve-v2", "done-v2"],
+      formFieldIds: [],
+      formOptionIds: [],
       actorUserId: "editor",
       now: "2026-07-23T12:00:00.000Z",
     });

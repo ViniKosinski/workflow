@@ -13,9 +13,11 @@ import {
   lockWorkflowDefinition,
   serializableWorkflowDefinitionTransaction,
 } from "@/modules/workflowDefinitions/infrastructure/workflowDefinitionTransaction";
+import type { WorkflowFormValue } from "@/modules/workflowDefinitions/domain/workflowForm";
 
 const include = {
   steps: { include: { outgoingTransitions: { orderBy: { createdAt: "asc" as const } } }, orderBy: { order: "asc" as const } },
+  formFields: { include: { options: { orderBy: { order: "asc" as const } } }, orderBy: { order: "asc" as const } },
 } satisfies Prisma.WorkflowDefinitionInclude;
 
 type DefinitionRecord = Prisma.WorkflowDefinitionGetPayload<{ include: typeof include }>;
@@ -52,6 +54,17 @@ function mapDefinition(record: DefinitionRecord): WorkflowDefinition {
     name: record.name,
     status: statusToDomain(record.status),
     steps: record.steps.map(mapStep),
+    form: record.formFields.map((field) => ({
+      id: field.id,
+      key: field.key,
+      label: field.label,
+      description: field.description ?? undefined,
+      type: field.type.toLowerCase() as WorkflowDefinition["form"][number]["type"],
+      required: field.required,
+      order: field.order,
+      defaultValue: field.defaultValue === null ? undefined : field.defaultValue as WorkflowFormValue,
+      options: field.options.map((option) => ({ id: option.id, value: option.value, label: option.label, order: option.order })),
+    })),
     createdByUserId: record.createdByUserId,
     publishedByUserId: record.publishedByUserId ?? undefined,
     createdAt: record.createdAt.toISOString(),
@@ -84,7 +97,8 @@ export class PrismaWorkflowDefinitionRepository implements WorkflowDefinitionRep
           updatedAt: new Date(definition.updatedAt),
         },
         });
-        await this.replaceSteps(transaction, definition);
+      await this.replaceSteps(transaction, definition);
+      await this.replaceForm(transaction, definition);
       });
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
@@ -110,7 +124,10 @@ export class PrismaWorkflowDefinitionRepository implements WorkflowDefinitionRep
         },
       });
       if (updated.count !== 1) throw new WorkflowDefinitionConcurrencyError();
-      if (definition.status === "draft") await this.replaceSteps(transaction, definition);
+      if (definition.status === "draft") {
+        await this.replaceSteps(transaction, definition);
+        await this.replaceForm(transaction, definition);
+      }
     });
     return (await this.findById(definition.id))!;
   }
@@ -232,6 +249,7 @@ export class PrismaWorkflowDefinitionRepository implements WorkflowDefinitionRep
         },
       });
       await this.replaceSteps(transaction, persisted);
+      await this.replaceForm(transaction, persisted);
     });
     return (await this.findById(revision.id))!;
   }
@@ -292,6 +310,35 @@ export class PrismaWorkflowDefinitionRepository implements WorkflowDefinitionRep
         endsWorkflow: transition.endsWorkflow,
       }))),
     });
+  }
+
+  private async replaceForm(transaction: Prisma.TransactionClient, definition: WorkflowDefinition) {
+    await transaction.workflowDefinitionFormField.deleteMany({ where: { workflowDefinitionId: definition.id } });
+    for (const field of definition.form) {
+      await transaction.workflowDefinitionFormField.create({
+        data: {
+          id: field.id,
+          workflowDefinitionId: definition.id,
+          key: field.key,
+          label: field.label,
+          description: field.description,
+          type: field.type.toUpperCase() as "TEXT" | "TEXTAREA" | "NUMBER" | "CURRENCY" | "BOOLEAN" | "DATE" | "DATETIME" | "SELECT" | "MULTISELECT",
+          required: field.required,
+          order: field.order,
+          defaultValue: field.defaultValue === undefined ? undefined : field.defaultValue === null ? Prisma.JsonNull : field.defaultValue,
+          options: {
+            createMany: {
+              data: field.options.map((option) => ({
+                id: option.id,
+                value: option.value,
+                label: option.label,
+                order: option.order,
+              })),
+            },
+          },
+        },
+      });
+    }
   }
 
   private transaction<T>(work: (transaction: Prisma.TransactionClient) => Promise<T>) {

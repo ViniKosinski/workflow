@@ -15,6 +15,7 @@ import {
   WorkflowDefinitionNotFoundError,
 } from "@/modules/workflowDefinitions/domain/workflowDefinitionRepository";
 import { WorkflowDefinitionError } from "@/modules/workflowDefinitions/domain/workflowDefinition";
+import { WorkflowFormError } from "@/modules/workflowDefinitions/domain/workflowForm";
 
 export function workflowJsonResponse(data: unknown, init?: ResponseInit) {
   return NextResponse.json(data, init);
@@ -49,6 +50,9 @@ export function workflowErrorResponse(error: unknown) {
   }
   if (error instanceof WorkflowDefinitionError) {
     return NextResponse.json({ message: error.message }, { status: 409 });
+  }
+  if (error instanceof WorkflowFormError) {
+    return NextResponse.json({ message: error.message }, { status: 400 });
   }
   if (error instanceof WorkflowDefinitionConcurrencyError) {
     return NextResponse.json({ message: error.message }, { status: 409 });

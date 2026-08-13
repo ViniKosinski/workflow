@@ -422,6 +422,9 @@ export type WorkflowEngineService = Readonly<{
   getWorkflowState: (
     input: GetWorkflowStateInput,
   ) => WorkflowEngineResult<WorkflowStateSnapshot>;
+  validateFormValuesUpdate: (
+    workflow: Workflow,
+  ) => WorkflowEngineResult<Workflow>;
 }>;
 
 export function isTerminalWorkflowStatus(status: WorkflowStatus) {
