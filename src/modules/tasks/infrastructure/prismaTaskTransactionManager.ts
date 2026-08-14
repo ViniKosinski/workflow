@@ -5,6 +5,7 @@ import { createWorkflowEngine } from "@/modules/workflows/domain/workflowEngineS
 import { WorkflowConcurrencyError } from "@/modules/workflows/domain/workflowPersistenceRepository";
 import { PrismaWorkflowRunRepository } from "@/modules/workflowDefinitions/infrastructure/prismaWorkflowRunRepository";
 import { prismaClient } from "@/shared/infrastructure/database/prismaClient";
+import { PrismaWorkflowRunFormRepository } from "@/modules/workflowDefinitions/infrastructure/prismaWorkflowRunFormRepository";
 
 export class PrismaTaskTransactionManager implements TaskTransactionManager {
   constructor(private readonly actorUserId: string, private readonly prisma: PrismaClient = prismaClient) {}
@@ -24,6 +25,7 @@ export class PrismaTaskTransactionManager implements TaskTransactionManager {
           }),
           repository: new PrismaWorkflowRunRepository(organizationId, transaction),
         }),
+        runForms: (organizationId) => new PrismaWorkflowRunFormRepository(organizationId, transaction),
       }), { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }) as T;
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2034") {

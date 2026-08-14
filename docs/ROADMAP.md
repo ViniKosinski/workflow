@@ -32,6 +32,20 @@ Escopo inicial:
 Critério de aceite principal: executar integralmente um processo piloto de
 solicitação e aprovação de compra sem acesso direto à API ou ao banco.
 
+### Entrega inicial implementada
+
+- fila com busca, filtro por status, ordenação e paginação;
+- distinção visual entre tarefas pendentes e iniciadas;
+- início explícito da tarefa pela interface;
+- contexto da organização, workflow e responsável;
+- formulário dinâmico integrado à execução da tarefa;
+- resultado e observação na mesma experiência;
+- persistência atômica do formulário, conclusão e encaminhamento;
+- histórico da tarefa e tratamento de conflitos e erros.
+
+Permanece para a evolução do épico: filtros organizacionais dedicados, visão
+gerencial de tarefas da organização e refinamentos do processo piloto.
+
 ## Fases posteriores
 
 1. Equipes, departamentos e atribuições mais granulares.

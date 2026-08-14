@@ -7,6 +7,7 @@ let cookieToken: string | undefined;
 vi.mock("next/headers", () => ({ cookies: async () => ({ get: (name: string) => name.includes("session") && cookieToken ? { value: cookieToken } : undefined, set: vi.fn() }) }));
 
 import { POST as completeTaskRoute } from "@/app/api/tasks/[id]/complete/route";
+import { POST as startTaskRoute } from "@/app/api/tasks/[id]/start/route";
 import { POST as legacyStartRoute } from "@/app/api/workflows/[id]/steps/[stepId]/start/route";
 import { POST as legacyCompleteRoute } from "@/app/api/workflows/[id]/steps/[stepId]/complete/route";
 import { GET as listTransitions, POST as addTransition } from "@/app/api/workflows/[id]/steps/[stepId]/transitions/route";
@@ -79,6 +80,7 @@ integration("task execution HTTP policy", () => {
     expect((await legacyStartRoute(request(`${origin}/api/workflows/${legacy.workflowId}/steps/${legacy.stepId}/start`), legacyContext(legacy.workflowId, legacy.stepId))).status).toBe(200);
     expect((await legacyCompleteRoute(request(`${origin}/api/workflows/${legacy.workflowId}/steps/${legacy.stepId}/complete`, { message: "ok" }), legacyContext(legacy.workflowId, legacy.stepId))).status).toBe(200);
     const current = workflows[1];
+    expect((await startTaskRoute(request(`${origin}/api/tasks/${current.stepId}/start`), taskContext(current.stepId))).status).toBe(200);
     expect((await completeTaskRoute(request(`${origin}/api/tasks/${current.stepId}/complete`, { message: "ok" }), taskContext(current.stepId))).status).toBe(200);
   });
 

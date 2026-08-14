@@ -6,7 +6,19 @@ import { taskErrorResponse } from "@/modules/tasks/presentation/api/taskApiRespo
 export async function GET(request: Request) {
   try {
     const user = await resolveAuthenticatedUser();
-    const order = new URL(request.url).searchParams.get("order") === "asc" ? "asc" : "desc";
-    return Response.json({ tasks: await listMyTasks(createTaskDependencies(user.userId), user.userId, order) });
+    const params = new URL(request.url).searchParams;
+    const order = params.get("order") === "asc" ? "asc" : "desc";
+    const status = params.get("status");
+    const page = Math.max(1, Number.parseInt(params.get("page") ?? "1", 10) || 1);
+    const pageSize = Math.min(50, Math.max(1, Number.parseInt(params.get("pageSize") ?? "10", 10) || 10));
+    const result = await listMyTasks(createTaskDependencies(user.userId), user.userId, {
+      order,
+      page,
+      pageSize,
+      search: params.get("search")?.trim().slice(0, 120) || undefined,
+      organizationId: params.get("organizationId")?.trim().slice(0, 64) || undefined,
+      status: status === "pending" || status === "running" ? status : undefined,
+    });
+    return Response.json(result);
   } catch (error) { return taskErrorResponse(error); }
 }

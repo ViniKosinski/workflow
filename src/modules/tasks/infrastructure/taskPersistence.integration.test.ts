@@ -46,8 +46,14 @@ integration("collaborative task persistence", () => {
   });
 
   it("lista somente para o responsável membro da organização", async () => {
-    await expect(tasks.listMine(memberId, "desc")).resolves.toEqual([expect.objectContaining({ id: stepId, organizationId, workflowId })]);
-    await expect(tasks.listMine(ownerId, "desc")).resolves.toEqual([]);
-    await expect(tasks.listMine(outsiderId, "desc")).resolves.toEqual([]);
+    const query = { order: "desc" as const, page: 1, pageSize: 10 };
+    await expect(tasks.listMine(memberId, query)).resolves.toMatchObject({ tasks: [expect.objectContaining({ id: stepId, organizationId, workflowId })], total: 1 });
+    await expect(tasks.listMine(ownerId, query)).resolves.toMatchObject({ tasks: [], total: 0 });
+    await expect(tasks.listMine(outsiderId, query)).resolves.toMatchObject({ tasks: [], total: 0 });
+  });
+
+  it("filtra e pagina a fila sem expor tarefas de terceiros", async () => {
+    await expect(tasks.listMine(memberId, { order: "desc", page: 1, pageSize: 1, search: "Aprova", status: "pending", organizationId })).resolves.toMatchObject({ total: 1, totalPages: 1, page: 1 });
+    await expect(tasks.listMine(memberId, { order: "desc", page: 1, pageSize: 10, search: "inexistente" })).resolves.toMatchObject({ tasks: [], total: 0 });
   });
 });

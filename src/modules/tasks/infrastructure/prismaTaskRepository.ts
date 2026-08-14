@@ -1,6 +1,6 @@
 import type { Prisma, PrismaClient } from "@prisma/client";
 import type { OrganizationRole } from "@/modules/organizations/domain/membership";
-import type { TaskHistoryEntry, WorkTask } from "@/modules/tasks/domain/task";
+import type { TaskHistoryEntry, TaskListQuery, WorkTask } from "@/modules/tasks/domain/task";
 import type { TaskAccess, TaskRepository } from "@/modules/tasks/domain/taskRepository";
 import { prismaClient } from "@/shared/infrastructure/database/prismaClient";
 
@@ -41,12 +41,12 @@ function mapTask(record: TaskRecord): WorkTask {
 export class PrismaTaskRepository implements TaskRepository {
   constructor(private readonly prisma: PrismaClient | Prisma.TransactionClient = prismaClient) {}
 
-  async listMine(userId: string, order: "asc" | "desc") {
+  async listMine(userId: string, query: TaskListQuery) {
     const memberships = await this.prisma.organizationMembership.findMany({
       where: { userId },
       select: { organizationId: true, role: true },
     });
-    if (memberships.length === 0) return [];
+    if (memberships.length === 0) return { tasks: [], page: query.page, pageSize: query.pageSize, total: 0, totalPages: 0 };
     const assignmentFilters: Prisma.WorkflowRunStepWhereInput[] = [
       {
         assigneeType: "USER",
@@ -59,16 +59,27 @@ export class PrismaTaskRepository implements TaskRepository {
         workflowRun: { workflowDefinition: { organizationId: membership.organizationId } },
       })),
     ];
-    const records = await this.prisma.workflowRunStep.findMany({
-      where: {
+    const where: Prisma.WorkflowRunStepWhereInput = {
         currentForRun: { is: { status: "RUNNING" } },
-        status: { in: ["PENDING", "RUNNING"] },
+        status: query.status ? query.status.toUpperCase() as "PENDING" | "RUNNING" : { in: ["PENDING", "RUNNING"] },
         OR: assignmentFilters,
-      },
+        ...(query.organizationId ? { workflowRun: { workflowDefinition: { organizationId: query.organizationId } } } : {}),
+        ...(query.search ? { AND: [{ OR: [
+          { name: { contains: query.search, mode: "insensitive" } },
+          { workflowRun: { workflowDefinition: { name: { contains: query.search, mode: "insensitive" } } } },
+        ] }] } : {}),
+    };
+    const [records, total] = await Promise.all([
+      this.prisma.workflowRunStep.findMany({
+      where,
       include: taskInclude,
-      orderBy: { createdAt: order },
-    });
-    return records.map(mapTask);
+      orderBy: { createdAt: query.order },
+      skip: (query.page - 1) * query.pageSize,
+      take: query.pageSize,
+    }),
+      this.prisma.workflowRunStep.count({ where }),
+    ]);
+    return { tasks: records.map(mapTask), page: query.page, pageSize: query.pageSize, total, totalPages: Math.ceil(total / query.pageSize) };
   }
 
   async findMine(taskId: string, userId: string): Promise<TaskAccess | null> {

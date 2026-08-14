@@ -2,6 +2,24 @@ import type { OrganizationRole } from "@/modules/organizations/domain/membership
 import type { StepAssignee } from "@/modules/workflows/domain/workflowEngine";
 
 export type TaskPriority = "normal";
+export type TaskStatus = "pending" | "running" | "completed" | "failed" | "skipped";
+
+export type TaskListQuery = Readonly<{
+  order: "asc" | "desc";
+  search?: string;
+  status?: "pending" | "running";
+  organizationId?: string;
+  page: number;
+  pageSize: number;
+}>;
+
+export type TaskPage = Readonly<{
+  tasks: ReadonlyArray<WorkTask>;
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+}>;
 
 export type WorkTask = Readonly<{
   id: string;
@@ -14,7 +32,7 @@ export type WorkTask = Readonly<{
   assigneeName: string;
   priority: TaskPriority;
   createdAt: string;
-  status: "pending" | "running" | "completed" | "failed" | "skipped";
+  status: TaskStatus;
   outcomes: ReadonlyArray<Readonly<{ result: string; name: string; description?: string }>>;
 }>;
 

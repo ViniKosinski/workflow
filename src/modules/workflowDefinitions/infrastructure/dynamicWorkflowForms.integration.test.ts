@@ -13,6 +13,8 @@ import { PrismaMembershipRepository } from "@/modules/organizations/infrastructu
 import { WorkflowConcurrencyError } from "@/modules/workflows/domain/workflowPersistenceRepository";
 import { updateWorkflowRunFormValues } from "@/modules/workflowDefinitions/application/workflowFormUseCases";
 import { WorkflowBusinessError } from "@/modules/workflows/application/workflowUseCaseErrors";
+import { completeTask } from "@/modules/tasks/application/completeTask";
+import { createTaskDependencies } from "@/modules/tasks/taskDependencies";
 
 const databaseUrl = process.env.TEST_DATABASE_URL;
 const integration = describe.skipIf(!databaseUrl);
@@ -162,5 +164,24 @@ integration("dynamic workflow forms", () => {
     );
 
     await expect(foreignOrganizationForms.find(run.id)).resolves.toBeNull();
+  });
+
+  it("salva o formulário e conclui a tarefa atomicamente", async () => {
+    const published = (await definitions.list({ status: "published" }))[0];
+    const run = await startWorkflowDefinitionRun(dependencies, published.id, userId);
+    const task = run.steps[0];
+
+    const completed = await completeTask(createTaskDependencies(userId), {
+      taskId: task.id,
+      selectedResult: task.transitions[0].result,
+      formVersion: run.version,
+      formValues: { customer: "Empresa Piloto", priority: "high" },
+    }, userId);
+
+    expect(completed.status).toBe("completed");
+    expect((await runForms.find(run.id))?.values).toMatchObject({
+      customer: "Empresa Piloto",
+      priority: "high",
+    });
   });
 });
