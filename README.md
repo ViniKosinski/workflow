@@ -1,6 +1,25 @@
 # Workflow
 
-Workflow é uma plataforma web para gerenciamento de processos e workflows empresariais.
+Workflow é uma plataforma empresarial para modelar, versionar, executar e
+auditar processos organizacionais. O produto separa definições e revisões dos
+processos de suas execuções concretas, permitindo que cada execução preserve
+estado, dados, tarefas e histórico próprios.
+
+## Estado atual
+
+A base atual inclui:
+
+- autenticação com sessões persistidas e isolamento por organização;
+- organizações, memberships, papéis e autorização;
+- workflows com responsáveis, transições, ramificações e etapas ignoradas;
+- tarefas colaborativas e filas por usuário;
+- definições versionadas com revisões publicadas imutáveis;
+- múltiplas execuções independentes por revisão;
+- formulários dinâmicos versionados, snapshots por execução e optimistic locking;
+- histórico de execução e persistência transacional em PostgreSQL.
+
+A visão de produto e a sequência planejada estão documentadas em
+[`docs/VISION.md`](docs/VISION.md) e [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
 ## Stack
 

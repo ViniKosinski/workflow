@@ -152,4 +152,15 @@ integration("dynamic workflow forms", () => {
       data: { workflowRunId: first.id, fieldId: foreignField.id, value: "invalid", updatedByUserId: userId },
     })).rejects.toMatchObject({ code: "P2003" });
   });
+
+  it("não expõe o formulário da execução para outra organização", async () => {
+    const published = (await definitions.list({ status: "published" }))[0];
+    const run = await startWorkflowDefinitionRun(dependencies, published.id, userId);
+    const foreignOrganizationForms = new PrismaWorkflowRunFormRepository(
+      `foreign-${organizationId}`,
+      prisma,
+    );
+
+    await expect(foreignOrganizationForms.find(run.id)).resolves.toBeNull();
+  });
 });
