@@ -38,10 +38,16 @@ integration("operational dashboard persistence", () => {
   });
 
   it("agrega a operação sem incluir outras organizações", async () => {
-    const result = await new PrismaOperationalDashboardRepository().getOrganization(organizationId);
-    expect(result).toMatchObject({ organizationId, pendingTasks: 1, runningTasks: 0, activeRuns: 1, completedRuns: 0 });
+    const result = await new PrismaOperationalDashboardRepository().getOrganization(organizationId, 7, new Date("2026-08-09T00:00:00.000Z"), new Date("2026-08-15T12:00:00.000Z"));
+    expect(result).toMatchObject({ organizationId, periodDays: 7, pendingTasks: 1, runningTasks: 0, activeRuns: 1, completedRuns: 0, startedRunsInPeriod: 1, completedRunsInPeriod: 0 });
     expect(result.tasksByStatus).toContainEqual({ status: "pending", count: 1 });
     expect(result.runsByWorkflow).toEqual([expect.objectContaining({ workflowName: "Compras", total: 1, active: 1 })]);
     expect(result.oldestTasks).toEqual([expect.objectContaining({ id: stepId, name: "Aprovar compra", assigneeName: "Gestor" })]);
+
+    await prisma.workflowRun.update({ where: { id: workflowId }, data: { currentStepId: null, status: "COMPLETED", startedAt: new Date("2026-08-15T10:00:00.000Z"), finishedAt: new Date("2026-08-15T12:00:00.000Z") } });
+    await prisma.workflowRunStep.update({ where: { id: stepId }, data: { status: "COMPLETED", startedAt: new Date("2026-08-15T10:00:00.000Z"), finishedAt: new Date("2026-08-15T11:00:00.000Z") } });
+    const completed = await new PrismaOperationalDashboardRepository().getOrganization(organizationId, 7, new Date("2026-08-09T00:00:00.000Z"), new Date("2026-08-15T12:00:00.000Z"));
+    expect(completed).toMatchObject({ activeRuns: 0, completedRuns: 1, startedRunsInPeriod: 1, completedRunsInPeriod: 1, averageCompletionHours: 2, averageStepHours: 1 });
+    expect(completed.dailyThroughput.at(-1)).toEqual({ date: "2026-08-15", started: 1, completed: 1 });
   });
 });
