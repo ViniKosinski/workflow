@@ -11,6 +11,7 @@ export const ORGANIZATION_PERMISSIONS = {
   workflowCreate: "workflow.create",
   workflowDefinitionUpdate: "workflow.definition.update",
   workflowExecutionManage: "workflow.execution.manage",
+  taskOrganizationRead: "task.organization.read",
 } as const;
 
 export type OrganizationPermission = (typeof ORGANIZATION_PERMISSIONS)[keyof typeof ORGANIZATION_PERMISSIONS];

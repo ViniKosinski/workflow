@@ -18,6 +18,7 @@ export function AppHeader({ userName, logoutControl }: Readonly<{ userName: stri
           <Link href="/workflows">Fluxos</Link>
           <Link href="/workflow-definitions">Definições</Link>
           <Link href="/tasks">Minha fila</Link>
+          <Link href="/tasks/organization">Tarefas da organização</Link>
           <Link href="/organizations">Organizações</Link>
           <Link href="/workflows/new">Novo fluxo</Link>
           <Link href="/profile">{userName}</Link>

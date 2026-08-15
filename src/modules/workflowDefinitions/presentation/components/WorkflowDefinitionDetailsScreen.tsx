@@ -163,7 +163,9 @@ export function WorkflowDefinitionDetailsScreen({ id }: Readonly<{ id: string }>
               <input checked={transition.endsWorkflow} type="checkbox" onChange={(event) => updateStep(step.id, (current) => ({ ...current, transitions: current.transitions.map((item) => item.id === transition.id ? { ...item, endsWorkflow: event.target.checked, targetStepId: event.target.checked ? undefined : item.targetStepId } : item) }))} />
               Encerrar workflow
             </label>
+            <button className="justify-self-start text-sm font-semibold text-rose-700" onClick={() => updateStep(step.id, (current) => ({ ...current, transitions: current.transitions.filter((item) => item.id !== transition.id) }))} type="button">Remover transição</button>
           </div>)}
+          <button className="text-sm font-semibold text-brand-700" onClick={() => updateStep(step.id, (current) => ({ ...current, transitions: [...current.transitions, { id: crypto.randomUUID(), name: "Novo resultado", result: `result_${current.transitions.length + 1}`, endsWorkflow: false }] }))} type="button">Adicionar transição</button>
         </fieldset>)}
         <button className="bg-brand-600 px-4 py-2 font-semibold text-white disabled:opacity-60" disabled={busy}>{busy ? "Salvando..." : "Salvar rascunho"}</button>
       </form> :
