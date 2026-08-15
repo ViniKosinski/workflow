@@ -42,9 +42,14 @@ solicitação e aprovação de compra sem acesso direto à API ou ao banco.
 - resultado e observação na mesma experiência;
 - persistência atômica do formulário, conclusão e encaminhamento;
 - histórico da tarefa e tratamento de conflitos e erros.
+- visão gerencial das tarefas da organização para owners e admins;
+- busca, filtro por status, paginação e detalhe gerencial somente leitura;
+- acompanhamento de responsável, workflow, estado e histórico com isolamento organizacional.
 
-Permanece para a evolução do épico: filtros organizacionais dedicados, visão
-gerencial de tarefas da organização e refinamentos do processo piloto.
+O processo piloto de solicitação e aprovação de compra está coberto ponta a
+ponta no Chromium, incluindo criação e publicação da definição, formulário,
+execução por solicitante e aprovador e acompanhamento gerencial. Permanece para
+a evolução do épico ampliar os cenários de rejeição e conflitos no E2E.
 
 ## Fases posteriores
 

@@ -4,14 +4,16 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
 
 let cookieToken: string | undefined;
+const setCookie = vi.fn();
 vi.mock("next/headers", () => ({
-  cookies: async () => ({ get: () => cookieToken ? { value: cookieToken } : undefined, set: vi.fn() }),
+  cookies: async () => ({ get: () => cookieToken ? { value: cookieToken } : undefined, set: setCookie }),
 }));
 
 import { GET as listOrganizations, POST as createOrganization } from "@/app/api/organizations/route";
 import { GET as getOrganization } from "@/app/api/organizations/[organizationId]/route";
 import { POST as addMember } from "@/app/api/organizations/[organizationId]/members/route";
 import { DELETE as removeMember } from "@/app/api/organizations/[organizationId]/members/[userId]/route";
+import { POST as selectActiveOrganization } from "@/app/api/organizations/active/route";
 
 const databaseUrl = process.env.TEST_DATABASE_URL;
 const integration = describe.skipIf(!databaseUrl);
@@ -54,6 +56,9 @@ integration("organizations HTTP API", () => {
     const created = await createOrganization(post("http://localhost/api/organizations", { name: "HTTP Org" }));
     expect(created.status).toBe(201);
     organizationId = (await created.json()).organization.id;
+    const selected = await selectActiveOrganization(post("http://localhost/api/organizations/active", { organizationId }));
+    expect(selected.status).toBe(204);
+    expect(setCookie).toHaveBeenCalledWith("active_organization_id", organizationId, expect.objectContaining({ httpOnly: true }));
 
     const payload = { email: `${users.viewer}@test.invalid`, role: "viewer" };
     expect((await addMember(post(`http://localhost/api/organizations/${organizationId}/members`, payload), context(organizationId))).status).toBe(201);

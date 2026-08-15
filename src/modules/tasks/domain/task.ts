@@ -13,6 +13,15 @@ export type TaskListQuery = Readonly<{
   pageSize: number;
 }>;
 
+export type OrganizationTaskListQuery = Readonly<{
+  order: "asc" | "desc";
+  search?: string;
+  status?: "pending" | "running" | "completed";
+  assigneeUserId?: string;
+  page: number;
+  pageSize: number;
+}>;
+
 export type TaskPage = Readonly<{
   tasks: ReadonlyArray<WorkTask>;
   page: number;

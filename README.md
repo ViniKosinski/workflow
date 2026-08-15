@@ -59,6 +59,8 @@ http://localhost:3000
 - `npm run type-check`: valida os tipos TypeScript.
 - `npm test`: executa todos os testes; com `TEST_DATABASE_URL`, aplica as migrations e inclui as integrações.
 - `npm run test:integration`: aplica as migrations e executa apenas os testes de integração.
+- `npm run test:e2e`: executa o processo piloto de compras no Chromium com Playwright.
+- `npm run seed:purchase-pilot`: recria os usuários e a organização do piloto no banco configurado.
 
 ## Estrutura
 

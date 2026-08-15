@@ -16,7 +16,7 @@ export async function POST(request: Request) {
   try {
     const { user, dependencies } = await getOrganizationRequestContext(request);
     const organizationId = requireString(await parseJsonObject(request), "organizationId", 64);
-    await getOrganization(dependencies, organizationId, user.userId);
+    await getOrganization(dependencies, user.userId, organizationId);
     (await cookies()).set(ACTIVE_ORGANIZATION_COOKIE, organizationId, { httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", path: "/" });
     return new Response(null, { status: 204 });
   } catch (error) { return organizationErrorResponse(error); }

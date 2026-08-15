@@ -4,6 +4,8 @@ import { createWorkflowEngine } from "@/modules/workflows/domain/workflowEngineS
 import { createPrismaWorkflowPersistenceRepository } from "@/modules/workflows/infrastructure/prismaWorkflowPersistenceRepository";
 import { PrismaTaskTransactionManager } from "@/modules/tasks/infrastructure/prismaTaskTransactionManager";
 import { WorkflowFormService } from "@/modules/workflowDefinitions/domain/workflowForm";
+import { PrismaMembershipRepository } from "@/modules/organizations/infrastructure/prismaMembershipRepository";
+import { OrganizationAuthorizationService } from "@/modules/authorization/domain/authorization";
 
 function engine() {
   return createWorkflowEngine({
@@ -19,6 +21,8 @@ function engine() {
 export function createTaskDependencies(actorUserId: string) {
   return {
     tasks: new PrismaTaskRepository(),
+    memberships: new PrismaMembershipRepository(),
+    organizationAuthorization: new OrganizationAuthorizationService(),
     authorization: new TaskAuthorizationService(),
     transactions: new PrismaTaskTransactionManager(actorUserId),
     forms: new WorkflowFormService(),

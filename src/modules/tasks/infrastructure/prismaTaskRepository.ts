@@ -1,7 +1,7 @@
 import type { Prisma, PrismaClient } from "@prisma/client";
 import type { OrganizationRole } from "@/modules/organizations/domain/membership";
-import type { TaskHistoryEntry, TaskListQuery, WorkTask } from "@/modules/tasks/domain/task";
-import type { TaskAccess, TaskRepository } from "@/modules/tasks/domain/taskRepository";
+import type { OrganizationTaskListQuery, TaskHistoryEntry, TaskListQuery, WorkTask } from "@/modules/tasks/domain/task";
+import type { OrganizationTaskRepository, TaskAccess, TaskRepository } from "@/modules/tasks/domain/taskRepository";
 import { prismaClient } from "@/shared/infrastructure/database/prismaClient";
 
 const roleFromPrisma = (role: string) => role.toLowerCase() as OrganizationRole;
@@ -38,7 +38,7 @@ function mapTask(record: TaskRecord): WorkTask {
   };
 }
 
-export class PrismaTaskRepository implements TaskRepository {
+export class PrismaTaskRepository implements TaskRepository, OrganizationTaskRepository {
   constructor(private readonly prisma: PrismaClient | Prisma.TransactionClient = prismaClient) {}
 
   async listMine(userId: string, query: TaskListQuery) {
@@ -80,6 +80,32 @@ export class PrismaTaskRepository implements TaskRepository {
       this.prisma.workflowRunStep.count({ where }),
     ]);
     return { tasks: records.map(mapTask), page: query.page, pageSize: query.pageSize, total, totalPages: Math.ceil(total / query.pageSize) };
+  }
+
+  async listOrganization(organizationId: string, query: OrganizationTaskListQuery) {
+    const where: Prisma.WorkflowRunStepWhereInput = {
+      workflowRun: { workflowDefinition: { organizationId } },
+      status: query.status ? query.status.toUpperCase() as "PENDING" | "RUNNING" | "COMPLETED" : { in: ["PENDING", "RUNNING", "COMPLETED"] },
+      ...(query.assigneeUserId ? { assigneeType: "USER", assigneeUserId: query.assigneeUserId } : {}),
+      ...(query.search ? { AND: [{ OR: [
+        { name: { contains: query.search, mode: "insensitive" } },
+        { assigneeUser: { name: { contains: query.search, mode: "insensitive" } } },
+        { workflowRun: { workflowDefinition: { name: { contains: query.search, mode: "insensitive" } } } },
+      ] }] } : {}),
+    };
+    const [records, total] = await Promise.all([
+      this.prisma.workflowRunStep.findMany({ where, include: taskInclude, orderBy: { updatedAt: query.order }, skip: (query.page - 1) * query.pageSize, take: query.pageSize }),
+      this.prisma.workflowRunStep.count({ where }),
+    ]);
+    return { tasks: records.map(mapTask), page: query.page, pageSize: query.pageSize, total, totalPages: Math.ceil(total / query.pageSize) };
+  }
+
+  async findInOrganization(taskId: string, organizationId: string) {
+    const record = await this.prisma.workflowRunStep.findFirst({
+      where: { id: taskId, workflowRun: { workflowDefinition: { organizationId } } },
+      include: taskInclude,
+    });
+    return record ? mapTask(record) : null;
   }
 
   async findMine(taskId: string, userId: string): Promise<TaskAccess | null> {
