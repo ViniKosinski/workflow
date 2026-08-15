@@ -54,7 +54,7 @@ a evolução do épico ampliar os cenários de rejeição e conflitos no E2E.
 ## Fases posteriores
 
 1. Equipes, departamentos e atribuições mais granulares.
-2. Dashboard operacional e métricas básicas.
+2. Dashboard operacional e métricas básicas. Entrega inicial implementada com contadores, distribuição por status e workflow e tarefas há mais tempo sem atualização.
 3. Prazos e políticas de SLA.
 4. Notificações internas e transactional outbox.
 5. E-mail, webhooks e integrações.
