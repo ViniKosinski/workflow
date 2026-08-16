@@ -27,7 +27,26 @@ describe("WorkflowForm visual", () => {
     await user.type(screen.getByLabelText("Nome do fluxo"), "Entrada de cliente");
     await user.click(screen.getByRole("button", { name: "Criar fluxo visual" }));
     await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
-    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({ name: "Entrada de cliente", steps: [{ name: "Primeira atividade", order: 1 }] });
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({ name: "Entrada de cliente", steps: [{ name: "Primeira atividade", order: 1, transitions: [{ name: "Concluir", result: "concluir_1", endsWorkflow: true }] }] });
     expect(push).toHaveBeenCalledWith("/workflows/workflow-1");
+  });
+
+  it("permite criar múltiplos resultados com destinos diferentes", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ workflow: { id: "workflow-2" } }), { status: 201 })); vi.stubGlobal("fetch", fetchMock);
+    render(<WorkflowForm />); const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "+ Nova atividade" }));
+    await user.click(screen.getByRole("button", { name: /Configurar etapa 1/ }));
+    await user.clear(screen.getByLabelText("Nome do resultado 1")); await user.type(screen.getByLabelText("Nome do resultado 1"), "Pagamento confirmado");
+    await user.selectOptions(screen.getByLabelText("Destino do resultado 1"), screen.getByRole("option", { name: "Ir para: Atividade 2" }));
+    await user.click(screen.getByRole("button", { name: "+ Resultado" }));
+    await user.clear(screen.getByLabelText("Nome do resultado 2")); await user.type(screen.getByLabelText("Nome do resultado 2"), "Não faturado");
+    await user.type(screen.getByLabelText("Nome do fluxo"), "Novo cliente");
+    await user.click(screen.getByRole("button", { name: "Criar fluxo visual" }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
+    const payload = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(payload.steps[0].transitions).toEqual([
+      { name: "Pagamento confirmado", result: "pagamento_confirmado_1", endsWorkflow: false, targetStepOrder: 2 },
+      { name: "Não faturado", result: "nao_faturado_2", endsWorkflow: true },
+    ]);
   });
 });

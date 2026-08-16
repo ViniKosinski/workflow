@@ -15,4 +15,11 @@ export type WorkflowApiErrorResponse = {
 export type WorkflowFormStep = {
   id: string;
   name: string;
+  outcomes: WorkflowFormOutcome[];
+};
+
+export type WorkflowFormOutcome = {
+  id: string;
+  name: string;
+  targetStepId: string | null;
 };
