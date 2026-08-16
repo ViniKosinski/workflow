@@ -19,6 +19,13 @@ describe("WorkflowForm visual", () => {
     expect(screen.getByText("35%")).toBeTruthy();
   });
 
+  it("cria um nó de fim independente para cada resultado de encerramento", async () => {
+    const { container } = render(<WorkflowForm />); const user = userEvent.setup();
+    expect(container.querySelectorAll("[data-end-outcome-id]")).toHaveLength(1);
+    await user.click(screen.getByRole("button", { name: "+ Resultado" }));
+    expect(container.querySelectorAll("[data-end-outcome-id]")).toHaveLength(2);
+  });
+
   it("permite desenhar, nomear e reorganizar atividades", async () => {
     render(<WorkflowForm />); const user = userEvent.setup();
     expect(screen.getByText("Fluxo iniciado")).toBeTruthy(); expect(screen.getAllByText("Fim").length).toBeGreaterThan(0);
