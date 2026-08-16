@@ -31,6 +31,7 @@ function mapStep(record: DefinitionRecord["steps"][number]): WorkflowDefinitionS
     id: record.id,
     name: record.name,
     order: record.order,
+    slaDurationHours: record.slaDurationHours ?? undefined,
     assignee: record.assigneeType === "USER"
       ? { type: "user", userId: record.assigneeUserId ?? "" }
       : { type: "role", role: record.assigneeRole!.toLowerCase() as "owner" | "admin" | "editor" | "viewer" },
@@ -297,6 +298,7 @@ export class PrismaWorkflowDefinitionRepository implements WorkflowDefinitionRep
         assigneeUserId: step.assignee.type === "user" ? step.assignee.userId : null,
         assigneeRole: step.assignee.type === "role" ? step.assignee.role.toUpperCase() as "OWNER" | "ADMIN" | "EDITOR" | "VIEWER" : null,
         priority: "NORMAL",
+        slaDurationHours: step.slaDurationHours ?? null,
       })),
     });
     await transaction.workflowDefinitionTransition.createMany({

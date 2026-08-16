@@ -33,6 +33,8 @@ function mapTask(record: TaskRecord): WorkTask {
     assigneeName: record.assigneeType === "ROLE" ? `Papel ${role}` : (record.assigneeUser?.name ?? "Usuário"),
     priority: "normal",
     createdAt: record.updatedAt.toISOString(),
+    slaDurationHours: record.slaDurationHours ?? undefined,
+    dueAt: record.dueAt?.toISOString(),
     status: record.status.toLowerCase() as WorkTask["status"],
     outcomes: (record.workflowDefinitionStep?.outgoingTransitions ?? []).map((transition) => ({ result: transition.result, name: transition.name, description: transition.description ?? undefined })),
   };

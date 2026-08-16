@@ -62,4 +62,13 @@ describe("WorkflowDefinitionService", () => {
   it("recusa iniciar execução a partir de rascunho", () => {
     expect(() => service.requirePublished(draft())).toThrow(WorkflowDefinitionError);
   });
+
+  it("aceita SLA opcional em horas inteiras", () => {
+    const definition = service.create({ id: "sla", name: "Com prazo", steps: steps.map((step) => ({ ...step, slaDurationHours: 48 })), createdByUserId: "user", now: "2026-07-23T10:00:00.000Z" });
+    expect(definition.steps[0].slaDurationHours).toBe(48);
+  });
+
+  it("rejeita SLA fora do intervalo permitido", () => {
+    expect(() => service.create({ id: "sla", name: "Inválido", steps: [{ ...steps[0], slaDurationHours: 0 }], createdByUserId: "user", now: "2026-07-23T10:00:00.000Z" })).toThrow(WorkflowDefinitionError);
+  });
 });

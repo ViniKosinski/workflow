@@ -55,7 +55,7 @@ a evolução do épico ampliar os cenários de rejeição e conflitos no E2E.
 
 1. Equipes, departamentos e atribuições mais granulares.
 2. Dashboard operacional e métricas básicas. Entrega implementada com contadores, distribuição por status e workflow, tarefas há mais tempo sem atualização, filtros de 7/30/90 dias, volume diário e tempos médios de execução e etapa.
-3. Prazos e políticas de SLA.
+3. Prazos e políticas de SLA. Primeira entrega implementada com prazo por etapa versionada, vencimento por tarefa ativa e sinalização nas filas e detalhes.
 4. Notificações internas e transactional outbox.
 5. E-mail, webhooks e integrações.
 6. Etapas automáticas executadas por workers.

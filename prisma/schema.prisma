@@ -194,6 +194,7 @@ model WorkflowDefinitionStep {
   assigneeUserId       String?            @map("assignee_user_id") @db.VarChar(64)
   assigneeRole         OrganizationRole?  @map("assignee_role")
   priority             TaskPriority       @default(NORMAL)
+  slaDurationHours     Int?               @map("sla_duration_hours")
   workflowDefinition   WorkflowDefinition @relation(fields: [workflowDefinitionId], references: [id], onDelete: Cascade)
   assigneeUser         User?              @relation("DefinitionStepAssignee", fields: [assigneeUserId], references: [id], onDelete: Restrict)
   runSteps             WorkflowRunStep[]
@@ -367,6 +368,8 @@ model WorkflowRunStep {
   assigneeUserId           String?            @map("assignee_user_id") @db.VarChar(64)
   assigneeRole             OrganizationRole?  @map("assignee_role")
   priority                 TaskPriority       @default(NORMAL)
+  slaDurationHours         Int?               @map("sla_duration_hours")
+  dueAt                    DateTime?          @map("due_at") @db.Timestamptz(6)
 
   workflowRun            WorkflowRun              @relation("WorkflowRunSteps", fields: [workflowRunId], references: [id], onDelete: Cascade)
   workflowDefinitionStep WorkflowDefinitionStep?   @relation(fields: [workflowDefinitionStepId], references: [id], onDelete: SetNull)
@@ -379,6 +382,7 @@ model WorkflowRunStep {
   @@index([workflowDefinitionStepId])
   @@index([status])
   @@index([assigneeUserId, status])
+  @@index([status, dueAt])
   @@map("workflow_run_steps")
 }
 
