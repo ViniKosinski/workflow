@@ -21,6 +21,7 @@ export type CreateWorkflowUseCaseInput = Readonly<{
       order: number;
       transitions?: ReadonlyArray<Readonly<{
         name: string;
+        description?: string;
         result: string;
         targetStepOrder?: number;
         endsWorkflow: boolean;

@@ -22,4 +22,6 @@ export type WorkflowFormOutcome = {
   id: string;
   name: string;
   targetStepId: string | null;
+  externalWorkflowId?: string;
+  externalStepId?: string;
 };

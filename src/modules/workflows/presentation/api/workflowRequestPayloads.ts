@@ -37,7 +37,7 @@ export async function parseCreateWorkflowPayload(request: Request) {
           if (targetStepOrder !== undefined && (typeof targetStepOrder !== "number" || !Number.isInteger(targetStepOrder) || targetStepOrder < 1 || targetStepOrder > 100)) {
             throw new HttpRequestError(400, `O destino do resultado ${transitionIndex + 1} da etapa ${index + 1} é inválido.`);
           }
-          return { name: requireString(transition, "name", 120), result: requireString(transition, "result", 120), endsWorkflow, targetStepOrder };
+          return { name: requireString(transition, "name", 120), description: optionalString(transition, "description", 2_000), result: requireString(transition, "result", 120), endsWorkflow, targetStepOrder };
         }),
       };
     }),
