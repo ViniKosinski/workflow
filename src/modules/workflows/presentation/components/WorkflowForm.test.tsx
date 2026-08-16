@@ -10,6 +10,15 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ push, refresh }) }));
 afterEach(() => { cleanup(); vi.restoreAllMocks(); push.mockReset(); refresh.mockReset(); });
 
 describe("WorkflowForm visual", () => {
+  it("permite reduzir e ajustar o zoom do mapa", async () => {
+    render(<WorkflowForm />); const user = userEvent.setup();
+    expect(screen.getByText("100%")).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Diminuir zoom" }));
+    expect(screen.getByText("90%")).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Ajustar" }));
+    expect(screen.getByText("35%")).toBeTruthy();
+  });
+
   it("permite desenhar, nomear e reorganizar atividades", async () => {
     render(<WorkflowForm />); const user = userEvent.setup();
     expect(screen.getByText("Fluxo iniciado")).toBeTruthy(); expect(screen.getAllByText("Fim").length).toBeGreaterThan(0);
