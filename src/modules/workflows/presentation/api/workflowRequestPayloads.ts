@@ -17,7 +17,29 @@ export async function parseCreateWorkflowPayload(request: Request) {
       if (typeof order !== "number" || !Number.isInteger(order) || order < 1 || order > 100) {
         throw new HttpRequestError(400, `A ordem da etapa ${index + 1} é inválida.`);
       }
-      return { name: requireString(step, "name", 255), order };
+      const transitions = step.transitions;
+      if (transitions !== undefined && (!Array.isArray(transitions) || transitions.length === 0 || transitions.length > 20)) {
+        throw new HttpRequestError(400, `Os resultados da etapa ${index + 1} são inválidos.`);
+      }
+      return {
+        name: requireString(step, "name", 255),
+        order,
+        transitions: transitions?.map((value, transitionIndex) => {
+          if (!value || typeof value !== "object" || Array.isArray(value)) {
+            throw new HttpRequestError(400, `O resultado ${transitionIndex + 1} da etapa ${index + 1} é inválido.`);
+          }
+          const transition = value as Record<string, unknown>;
+          const endsWorkflow = transition.endsWorkflow;
+          const targetStepOrder = transition.targetStepOrder;
+          if (typeof endsWorkflow !== "boolean" || endsWorkflow === (targetStepOrder !== undefined)) {
+            throw new HttpRequestError(400, `O destino do resultado ${transitionIndex + 1} da etapa ${index + 1} é inválido.`);
+          }
+          if (targetStepOrder !== undefined && (typeof targetStepOrder !== "number" || !Number.isInteger(targetStepOrder) || targetStepOrder < 1 || targetStepOrder > 100)) {
+            throw new HttpRequestError(400, `O destino do resultado ${transitionIndex + 1} da etapa ${index + 1} é inválido.`);
+          }
+          return { name: requireString(transition, "name", 120), description: optionalString(transition, "description", 2_000), result: requireString(transition, "result", 120), endsWorkflow, targetStepOrder };
+        }),
+      };
     }),
   };
 }

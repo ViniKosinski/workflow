@@ -7,7 +7,7 @@ export function NewWorkflowPage({ userName, logoutControl }: Readonly<{ userName
     <main className="min-h-screen bg-slate-50">
       <AppHeader userName={userName} logoutControl={logoutControl} />
 
-      <section className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-6 py-8">
+      <section className="mx-auto flex w-full max-w-[1500px] flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
         <div className="border-b border-slate-200 pb-6">
           <Link className="text-sm font-semibold text-brand-700" href="/workflows">
             Voltar para fluxos
@@ -16,7 +16,7 @@ export function NewWorkflowPage({ userName, logoutControl }: Readonly<{ userName
             Novo fluxo
           </h1>
           <p className="mt-2 text-sm text-slate-600">
-            Defina o nome e as etapas obrigatórias do processo.
+            Desenhe o caminho principal do processo em um quadro visual. Depois, configure responsáveis, resultados e ramificações.
           </p>
         </div>
 

@@ -40,6 +40,11 @@ export async function createWorkflow(
       name: step.name.trim(),
       order: step.order,
       assignee: { type: "user", userId: actorUserId },
+      transitions: step.transitions?.map((transition) => ({
+        ...transition,
+        name: transition.name.trim(),
+        result: transition.result.trim(),
+      })),
     })),
   });
 
