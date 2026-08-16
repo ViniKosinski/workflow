@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { WorkflowForm } from "@/modules/workflows/presentation/components/WorkflowForm";
 
@@ -66,5 +66,16 @@ describe("WorkflowForm visual", () => {
     await waitFor(() => expect(created).toHaveLength(2));
     const onboarding = created[1] as { steps: Array<{ transitions: Array<{ description?: string }> }> };
     expect(onboarding.steps[0].transitions[1].description).toBe("workflow-link:cancellation:cancel-2");
+  });
+
+  it("liga visualmente um resultado a outra atividade por arrastar e soltar", async () => {
+    render(<WorkflowForm />); const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "+ Nova atividade" }));
+    await user.click(screen.getByRole("button", { name: /Configurar etapa 1/ }));
+    const target = screen.getByRole("button", { name: /Configurar etapa 2/ });
+    Object.defineProperty(document, "elementFromPoint", { configurable: true, value: vi.fn(() => target) });
+    fireEvent.pointerDown(screen.getAllByRole("button", { name: "Ligar resultado Concluir" })[0], { clientX: 100, clientY: 100, pointerId: 1 });
+    fireEvent.pointerUp(window, { clientX: 300, clientY: 100, pointerId: 1 });
+    await waitFor(() => expect((screen.getByLabelText("Destino do resultado 1") as HTMLSelectElement).value).toBe(`local:${(target as HTMLElement).dataset.stepId}`));
   });
 });
