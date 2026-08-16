@@ -18,6 +18,11 @@ describe("organizationClient", () => {
     expect(fetchMock).toHaveBeenCalledWith("/api/organizations/org-1/members/user-1", { method: "DELETE" });
   });
 
+  it("carrega os papéis atribuíveis como textos", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ roles: ["admin", "editor", "viewer"] }), { status: 200, headers: { "Content-Type": "application/json" } })));
+    await expect(organizationClient.roles()).resolves.toEqual(["admin", "editor", "viewer"]);
+  });
+
   it("propaga mensagem amigável da API", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ message: "Você não possui permissão." }), { status: 403 })));
     await expect(organizationClient.members("org-1")).rejects.toThrow("Você não possui permissão.");
