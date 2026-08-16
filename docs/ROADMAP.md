@@ -28,6 +28,7 @@ Escopo inicial:
 - encaminhamento automático;
 - histórico compreensível;
 - estados vazios, erros e conflitos de concorrência claros.
+- construtor visual didático para desenhar o caminho principal do fluxo.
 
 Critério de aceite principal: executar integralmente um processo piloto de
 solicitação e aprovação de compra sem acesso direto à API ou ao banco.
