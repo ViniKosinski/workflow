@@ -122,6 +122,9 @@ export function WorkflowDefinitionDetailsScreen({ id }: Readonly<{ id: string }>
           <label className="block text-sm font-medium">Nome
             <input className="mt-1 h-10 w-full border border-slate-300 px-3" maxLength={255} required value={step.name} onChange={(event) => updateStep(step.id, (current) => ({ ...current, name: event.target.value }))} />
           </label>
+          <label className="block text-sm font-medium">Prazo da etapa (horas)
+            <input className="mt-1 h-10 w-full border border-slate-300 px-3" min="1" max="8760" placeholder="Sem prazo" type="number" value={step.slaDurationHours ?? ""} onChange={(event) => updateStep(step.id, (current) => ({ ...current, slaDurationHours: event.target.value ? Number(event.target.value) : undefined }))} />
+          </label>
           <label className="block text-sm font-medium">Tipo de responsável
             <select className="mt-1 h-10 w-full border border-slate-300 px-3" value={step.assignee.type} onChange={(event) => updateStep(step.id, (current) => ({
               ...current,
@@ -172,6 +175,7 @@ export function WorkflowDefinitionDetailsScreen({ id }: Readonly<{ id: string }>
       <ol className="space-y-3">{definition.steps.map((step) => <li className="border bg-white p-4" key={step.id}>
         <p className="font-semibold">{step.order}. {step.name}</p>
         <p className="mt-1 text-sm text-slate-600">Responsável: {step.assignee.type === "role" ? step.assignee.role : step.assignee.userId}</p>
+        <p className="mt-1 text-sm text-slate-600">SLA: {step.slaDurationHours ? `${step.slaDurationHours} hora(s)` : "sem prazo"}</p>
         <p className="mt-1 text-xs text-slate-500">{step.transitions.map((transition) => `${transition.result} → ${transition.endsWorkflow ? "encerrar" : transition.targetStepId}`).join(" · ")}</p>
       </li>)}</ol>}
     {definition.status === "draft" ? <WorkflowDefinitionFormEditor definitionId={definition.id} initialFields={definition.form} /> :

@@ -41,9 +41,22 @@ export type WorkTask = Readonly<{
   assigneeName: string;
   priority: TaskPriority;
   createdAt: string;
+  slaDurationHours?: number;
+  dueAt?: string;
   status: TaskStatus;
   outcomes: ReadonlyArray<Readonly<{ result: string; name: string; description?: string }>>;
 }>;
+
+export type TaskSlaStatus = "without-deadline" | "on-time" | "due-soon" | "overdue" | "completed";
+
+export function getTaskSlaStatus(task: Pick<WorkTask, "status" | "dueAt">, now = new Date()): TaskSlaStatus {
+  if (!task.dueAt) return "without-deadline";
+  if (task.status === "completed") return "completed";
+  const remaining = new Date(task.dueAt).getTime() - now.getTime();
+  if (remaining < 0) return "overdue";
+  if (remaining <= 24 * 3_600_000) return "due-soon";
+  return "on-time";
+}
 
 export type TaskHistoryEntry = Readonly<{
   id: string;

@@ -15,6 +15,7 @@ export type WorkflowDefinitionStep = Readonly<{
   id: string;
   name: string;
   order: number;
+  slaDurationHours?: number;
   assignee: StepAssignee;
   transitions: ReadonlyArray<WorkflowStepTransition>;
 }>;
@@ -177,6 +178,10 @@ export class WorkflowDefinitionService {
       !Number.isInteger(definition.lockVersion) || definition.lockVersion < 1 ||
       definition.steps.length === 0) {
       throw new WorkflowDefinitionError("Definição de workflow inválida.");
+    }
+    if (definition.steps.some((step) => step.slaDurationHours !== undefined &&
+      (!Number.isInteger(step.slaDurationHours) || step.slaDurationHours < 1 || step.slaDurationHours > 8_760))) {
+      throw new WorkflowDefinitionError("O prazo da etapa deve ser informado em horas inteiras, entre 1 e 8760.");
     }
   }
 

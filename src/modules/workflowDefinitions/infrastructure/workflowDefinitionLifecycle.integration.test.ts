@@ -64,6 +64,7 @@ integration("versioned workflow definitions and independent runs", () => {
           id: `versioned-analysis-${suffix}`,
           name: "Análise",
           order: 1,
+          slaDurationHours: 48,
           assignee: { type: "user", userId },
           transitions: [{ id: crypto.randomUUID(), name: "Continuar", result: "continue", targetStepId: `versioned-finish-${suffix}`, endsWorkflow: false }],
         },
@@ -71,6 +72,7 @@ integration("versioned workflow definitions and independent runs", () => {
           id: `versioned-finish-${suffix}`,
           name: "Finalização",
           order: 2,
+          slaDurationHours: 24,
           assignee: { type: "user", userId },
           transitions: [{ id: crypto.randomUUID(), name: "Finalizar", result: "done", endsWorkflow: true }],
         },
@@ -97,6 +99,8 @@ integration("versioned workflow definitions and independent runs", () => {
     expect(first.definitionRevision).toBe(1);
     expect(first.steps[0].id).not.toBe(second.steps[0].id);
     expect(first.currentStepId).not.toBe(second.currentStepId);
+    const initialDeadlines = await prisma.workflowRunStep.findMany({ where: { workflowRunId: first.id }, orderBy: { order: "asc" }, select: { slaDurationHours: true, dueAt: true } });
+    expect(initialDeadlines).toMatchObject([{ slaDurationHours: 48, dueAt: expect.any(Date) }, { slaDurationHours: 24, dueAt: null }]);
 
     const firstStarted = engine.startStep({ workflow: first, stepId: first.currentStepId! });
     if (!firstStarted.success) throw new Error(firstStarted.error.message);
@@ -112,6 +116,8 @@ integration("versioned workflow definitions and independent runs", () => {
     const unchangedDefinition = await definitions.findById(definitionId);
 
     expect(updatedFirst.currentStepId).not.toBe(first.currentStepId);
+    const activatedDeadline = await prisma.workflowRunStep.findUnique({ where: { id: updatedFirst.currentStepId! }, select: { dueAt: true } });
+    expect(activatedDeadline?.dueAt).toBeInstanceOf(Date);
     expect(untouchedSecond?.currentStepId).toBe(second.currentStepId);
     expect(untouchedSecond?.version).toBe(1);
     expect(unchangedDefinition?.lockVersion).toBe(2);

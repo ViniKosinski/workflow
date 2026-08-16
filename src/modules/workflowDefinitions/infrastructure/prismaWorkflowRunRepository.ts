@@ -105,6 +105,7 @@ export class PrismaWorkflowRunRepository implements WorkflowRunRepository, Workf
 
   async create(definition: WorkflowDefinition, run: Workflow, startedByUserId: string) {
     const definitionStepByOrder = new Map(definition.steps.map((step) => [step.order, step.id]));
+    const definitionStepSlaByOrder = new Map(definition.steps.map((step) => [step.order, step.slaDurationHours]));
     await this.definitionTransaction(definition.definitionKey, async (transaction) => {
       const published = await transaction.workflowDefinition.findFirst({
         where: { id: definition.id, organizationId: this.organizationId, status: "PUBLISHED" },
@@ -136,6 +137,10 @@ export class PrismaWorkflowRunRepository implements WorkflowRunRepository, Workf
           assigneeUserId: step.assignee.type === "user" ? step.assignee.userId : null,
           assigneeRole: step.assignee.type === "role" ? step.assignee.role.toUpperCase() as "OWNER" | "ADMIN" | "EDITOR" | "VIEWER" : null,
           priority: "NORMAL",
+          slaDurationHours: definitionStepSlaByOrder.get(step.order) ?? null,
+          dueAt: step.id === run.currentStepId && definitionStepSlaByOrder.get(step.order)
+            ? new Date(new Date(run.updatedAt).getTime() + definitionStepSlaByOrder.get(step.order)! * 3_600_000)
+            : null,
         })),
       });
       await transaction.workflowRun.update({ where: { id: run.id }, data: { currentStepId: run.currentStepId } });
@@ -208,7 +213,16 @@ export class PrismaWorkflowRunRepository implements WorkflowRunRepository, Workf
         if (!owned) throw new Error("Workflow was not found.");
         throw new WorkflowConcurrencyError(workflow.id);
       }
+      const persistedSteps = await transaction.workflowRunStep.findMany({
+        where: { workflowRunId: workflow.id },
+        select: { id: true, dueAt: true, slaDurationHours: true },
+      });
+      const persistedById = new Map(persistedSteps.map((step) => [step.id, step]));
       for (const step of workflow.steps) {
+        const persisted = persistedById.get(step.id);
+        const dueAt = step.id === workflow.currentStepId && !persisted?.dueAt && persisted?.slaDurationHours
+          ? new Date(new Date(workflow.updatedAt).getTime() + persisted.slaDurationHours * 3_600_000)
+          : persisted?.dueAt;
         await transaction.workflowRunStep.update({
           where: { id: step.id },
           data: {
@@ -217,6 +231,7 @@ export class PrismaWorkflowRunRepository implements WorkflowRunRepository, Workf
             startedAt: step.startedAt ? new Date(step.startedAt) : null,
             finishedAt: step.finishedAt ? new Date(step.finishedAt) : null,
             errorMessage: step.errorMessage,
+            dueAt,
           },
         });
       }
