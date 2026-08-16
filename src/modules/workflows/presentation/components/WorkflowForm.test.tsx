@@ -19,16 +19,17 @@ describe("WorkflowForm visual", () => {
     expect(screen.getByText("35%")).toBeTruthy();
   });
 
-  it("cria um nó de fim independente para cada resultado de encerramento", async () => {
+  it("permite adicionar nós de fim explicitamente", async () => {
     const { container } = render(<WorkflowForm />); const user = userEvent.setup();
-    expect(container.querySelectorAll("[data-end-outcome-id]")).toHaveLength(1);
-    await user.click(screen.getByRole("button", { name: "+ Resultado" }));
-    expect(container.querySelectorAll("[data-end-outcome-id]")).toHaveLength(2);
+    expect(container.querySelectorAll("[data-end-id]")).toHaveLength(1);
+    await user.click(screen.getByRole("button", { name: "+ Fim" }));
+    expect(container.querySelectorAll("[data-end-id]")).toHaveLength(2);
+    expect(screen.getByRole("option", { name: "Encerrar em: Fim 2" })).toBeTruthy();
   });
 
   it("permite desenhar, nomear e reorganizar atividades", async () => {
     render(<WorkflowForm />); const user = userEvent.setup();
-    expect(screen.getByText("Fluxo iniciado")).toBeTruthy(); expect(screen.getAllByText("Fim").length).toBeGreaterThan(0);
+    expect(screen.getByText("Fluxo iniciado")).toBeTruthy(); expect(screen.getAllByText("Fim 1").length).toBeGreaterThan(0);
     await user.click(screen.getByRole("button", { name: "+ Nova atividade" }));
     expect(screen.getByRole("button", { name: /Configurar etapa 2/ })).toBeTruthy();
     const field = screen.getByLabelText("Nome da atividade"); await user.clear(field); await user.type(field, "Conferir pagamento");
