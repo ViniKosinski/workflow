@@ -7,13 +7,14 @@ import { LogoutButton } from "@/modules/auth/presentation/components/LogoutButto
 import { getActiveOrganizationId } from "@/modules/organizations/presentation/server/activeOrganization";
 import { getDashboardMetrics, type DashboardMetrics } from "@/modules/dashboard/application/dashboardMetrics";
 import { PrismaDashboardMetricsRepository } from "@/modules/dashboard/infrastructure/prismaDashboardMetricsRepository";
-import { getOperationalDashboard, type OperationalDashboard } from "@/modules/dashboard/application/operationalDashboard";
+import { getOperationalDashboard, parseDashboardPeriod, type OperationalDashboard } from "@/modules/dashboard/application/operationalDashboard";
 import { PrismaOperationalDashboardRepository } from "@/modules/dashboard/infrastructure/prismaOperationalDashboardRepository";
 import { PrismaMembershipRepository } from "@/modules/organizations/infrastructure/prismaMembershipRepository";
 import { AuthorizationDeniedError, OrganizationAuthorizationService } from "@/modules/authorization/domain/authorization";
 
-export default async function Home() {
+export default async function Home({ searchParams }: Readonly<{ searchParams: Promise<{ period?: string }> }>) {
   const user = await requireAuthenticatedPageUser();
+  const period = parseDashboardPeriod((await searchParams).period);
   let workflows: Workflow[] = [];
   let loadError: string | null = null;
   let metrics: DashboardMetrics = { activeWorkflows: 0, closedWorkflows: 0, pendingTasks: 0, completedTasksToday: 0 };
@@ -23,7 +24,7 @@ export default async function Home() {
     workflows = [...await listPersistedWorkflows(createWorkflowPersistenceDependencies(user.userId, organizationId), { limit: 3 })];
     metrics = await getDashboardMetrics(new PrismaDashboardMetricsRepository(), user.userId, organizationId);
     try {
-      operational = await getOperationalDashboard({ repository: new PrismaOperationalDashboardRepository(), memberships: new PrismaMembershipRepository(), authorization: new OrganizationAuthorizationService() }, user.userId, organizationId);
+      operational = await getOperationalDashboard({ repository: new PrismaOperationalDashboardRepository(), memberships: new PrismaMembershipRepository(), authorization: new OrganizationAuthorizationService() }, user.userId, organizationId, period);
     } catch (error) {
       if (!(error instanceof AuthorizationDeniedError)) throw error;
     }
