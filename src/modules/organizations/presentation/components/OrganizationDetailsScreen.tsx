@@ -7,6 +7,7 @@ import type { OrganizationAuthorizationView, OrganizationMemberView, Organizatio
 import { AddMemberForm } from "@/modules/organizations/presentation/components/AddMemberForm";
 import { OrganizationHeader } from "@/modules/organizations/presentation/components/OrganizationHeader";
 import { OrganizationMembers } from "@/modules/organizations/presentation/components/OrganizationMembers";
+import { OrganizationTeams } from "@/modules/teams/presentation/components/OrganizationTeams";
 
 type State = { organization: OrganizationView; members: OrganizationMemberView[]; authorization: OrganizationAuthorizationView; roles: Exclude<OrganizationRole, "owner">[] };
 
@@ -18,5 +19,6 @@ export function OrganizationDetailsScreen({ organizationId }: Readonly<{ organiz
   if (error && !state) return <section className="mx-auto max-w-6xl px-6 py-8"><p className="border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">{error}</p></section>;
   if (!state) return null;
   const canAdd = state.authorization.permissions.includes(ORGANIZATION_PERMISSIONS.membershipAdd);
-  return <section className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-6 py-8"><OrganizationHeader authorization={state.authorization} organization={state.organization} /><div className="border border-slate-200 bg-white p-5"><h2 className="font-semibold text-slate-950">Suas permissões</h2><p className="mt-2 text-sm text-slate-600">{state.authorization.permissions.join(" · ")}</p></div>{canAdd ? <AddMemberForm onChanged={load} organizationId={organizationId} roles={state.roles} /> : null}{error ? <p className="border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{error}</p> : null}<OrganizationMembers members={state.members} onChanged={load} /></section>;
+  const canManageTeams = state.authorization.permissions.includes(ORGANIZATION_PERMISSIONS.teamManage);
+  return <section className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-6 py-8"><OrganizationHeader authorization={state.authorization} organization={state.organization} /><div className="border border-slate-200 bg-white p-5"><h2 className="font-semibold text-slate-950">Suas permissões</h2><p className="mt-2 text-sm text-slate-600">{state.authorization.permissions.join(" · ")}</p></div>{canAdd ? <AddMemberForm onChanged={load} organizationId={organizationId} roles={state.roles} /> : null}{error ? <p className="border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{error}</p> : null}<OrganizationMembers members={state.members} onChanged={load} /><OrganizationTeams canManage={canManageTeams} organizationId={organizationId} organizationMembers={state.members} /></section>;
 }

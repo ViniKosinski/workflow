@@ -14,9 +14,9 @@ describe("OrganizationAuthorizationService", () => {
     [ORGANIZATION_ROLES.admin, Object.values(ORGANIZATION_PERMISSIONS)],
     [ORGANIZATION_ROLES.editor, [
       "organization.read", "membership.read", "workflow.read", "workflow.create",
-      "workflow.definition.update", "workflow.execution.manage",
+      "workflow.definition.update", "workflow.execution.manage", "team.read",
     ]],
-    [ORGANIZATION_ROLES.viewer, ["organization.read", "membership.read", "workflow.read"]],
+    [ORGANIZATION_ROLES.viewer, ["organization.read", "membership.read", "workflow.read", "team.read"]],
   ] as const)("aplica a matriz completa para %s", (role, expected) => {
     expect(service.permissionsFor(role)).toEqual(expected);
     for (const permission of Object.values(ORGANIZATION_PERMISSIONS)) {

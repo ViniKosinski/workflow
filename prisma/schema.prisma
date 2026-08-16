@@ -33,6 +33,12 @@ enum TaskPriority {
   @@map("task_priority")
 }
 
+enum TeamMemberRole {
+  MANAGER @map("manager")
+  MEMBER  @map("member")
+  @@map("team_member_role")
+}
+
 model User {
   id              String         @id @db.VarChar(64)
   email           String         @db.VarChar(320)
@@ -44,6 +50,7 @@ model User {
   credential      UserCredential?
   sessions        AuthSession[]
   memberships     OrganizationMembership[]
+  teamMemberships TeamMembership[]
   createdWorkflows WorkflowDefinition[]
   publishedWorkflowDefinitions WorkflowDefinition[] @relation("PublishedWorkflowDefinitions")
   startedWorkflowRuns WorkflowRun[] @relation("StartedWorkflowRuns")
@@ -61,8 +68,37 @@ model Organization {
   updatedAt   DateTime                 @updatedAt @map("updated_at") @db.Timestamptz(6)
   memberships OrganizationMembership[]
   workflows   WorkflowDefinition[]
+  teams       Team[]
 
   @@map("organizations")
+}
+
+model Team {
+  id             String           @id @db.VarChar(64)
+  organizationId String           @map("organization_id") @db.VarChar(64)
+  name           String           @db.VarChar(160)
+  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  memberships    TeamMembership[]
+
+  @@unique([organizationId, name])
+  @@index([organizationId, createdAt])
+  @@map("teams")
+}
+
+model TeamMembership {
+  teamId    String         @map("team_id") @db.VarChar(64)
+  userId    String         @map("user_id") @db.VarChar(64)
+  role      TeamMemberRole @default(MEMBER)
+  createdAt DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+  team      Team           @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([teamId, userId])
+  @@index([userId, teamId])
+  @@map("team_memberships")
 }
 
 model OrganizationMembership {

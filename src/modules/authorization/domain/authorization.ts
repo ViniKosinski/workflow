@@ -13,6 +13,8 @@ export const ORGANIZATION_PERMISSIONS = {
   workflowExecutionManage: "workflow.execution.manage",
   taskOrganizationRead: "task.organization.read",
   dashboardOrganizationRead: "dashboard.organization.read",
+  teamRead: "team.read",
+  teamManage: "team.manage",
 } as const;
 
 export type OrganizationPermission = (typeof ORGANIZATION_PERMISSIONS)[keyof typeof ORGANIZATION_PERMISSIONS];
@@ -25,6 +27,7 @@ const EDITOR_PERMISSIONS: ReadonlyArray<OrganizationPermission> = [
   ORGANIZATION_PERMISSIONS.workflowCreate,
   ORGANIZATION_PERMISSIONS.workflowDefinitionUpdate,
   ORGANIZATION_PERMISSIONS.workflowExecutionManage,
+  ORGANIZATION_PERMISSIONS.teamRead,
 ];
 
 export const ROLE_PERMISSION_MATRIX: Readonly<Record<OrganizationRole, ReadonlyArray<OrganizationPermission>>> = {
@@ -35,6 +38,7 @@ export const ROLE_PERMISSION_MATRIX: Readonly<Record<OrganizationRole, ReadonlyA
     ORGANIZATION_PERMISSIONS.organizationRead,
     ORGANIZATION_PERMISSIONS.membershipRead,
     ORGANIZATION_PERMISSIONS.workflowRead,
+    ORGANIZATION_PERMISSIONS.teamRead,
   ],
 };
 

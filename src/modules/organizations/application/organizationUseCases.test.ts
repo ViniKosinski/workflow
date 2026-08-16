@@ -104,6 +104,6 @@ describe("organization use cases", () => {
 
   it("retorna papel e capabilities pela autoridade central", async () => {
     const { dependencies } = createDependencies("viewer");
-    await expect(checkOrganizationAuthorization(dependencies, "actor", "org")).resolves.toMatchObject({ role: "viewer", permissions: ["organization.read", "membership.read", "workflow.read"] });
+    await expect(checkOrganizationAuthorization(dependencies, "actor", "org")).resolves.toMatchObject({ role: "viewer", permissions: ["organization.read", "membership.read", "workflow.read", "team.read"] });
   });
 });
