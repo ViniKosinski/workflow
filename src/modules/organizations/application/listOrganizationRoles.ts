@@ -1,5 +1,5 @@
-import { ROLE_PERMISSION_MATRIX } from "@/modules/authorization/domain/authorization";
+import { ASSIGNABLE_MEMBERSHIP_ROLES } from "@/modules/organizations/domain/membership";
 
 export function listOrganizationRoles() {
-  return Object.entries(ROLE_PERMISSION_MATRIX).map(([role, permissions]) => ({ role, permissions }));
+  return [...ASSIGNABLE_MEMBERSHIP_ROLES];
 }
